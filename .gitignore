@@ -1,0 +1,7 @@
+# ferramentas locais de desenvolvimento e testes
+.claude/
+.impeccable/
+.playwright-mcp/
+.DS_Store
+Thumbs.db
+PRODUCT.md

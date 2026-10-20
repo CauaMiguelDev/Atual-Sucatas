@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel da Loja | Atual Sucatas</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0c0c0e">
+  <link rel="icon" href="../assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@0,75..125,400..900;1,75..125,600..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+  <link rel="stylesheet" href="../site/style.css?v=10">
+  <link rel="stylesheet" href="painel.css?v=20">
+</head>
+<body class="panel">
+
+  <!-- ===== LOGIN ===== -->
+  <section class="auth" id="auth">
+    <form class="auth__card" id="auth-form" autocomplete="on">
+      <img src="../assets/logo.png" alt="" width="84" height="84" class="auth__logo">
+      <p class="wordmark"><span class="chrome">Atual</span> <span class="red">Sucatas</span></p>
+      <h1 class="auth__title" id="auth-title">Painel da loja</h1>
+      <p class="auth__hint" id="auth-hint">Entre com seu usuário e senha.</p>
+
+      <label class="field">
+        <span>Usuário</span>
+        <input class="input" type="text" id="user" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+      </label>
+      <label class="field">
+        <span>Senha</span>
+        <span class="field__pw">
+          <input class="input" type="password" id="pw" autocomplete="current-password" required>
+          <button type="button" class="field__eye" data-eye="pw" aria-label="Mostrar senha"><i class="ph ph-eye"></i></button>
+        </span>
+      </label>
+      <label class="field" id="pw2-wrap" hidden>
+        <span>Confirme a senha</span>
+        <input class="input" type="password" id="pw2" autocomplete="new-password">
+      </label>
+      <p class="auth__error" id="auth-error" role="alert"></p>
+      <button class="btn btn--primary btn--lg auth__submit" type="submit" id="auth-submit">
+        <i class="ph ph-lock-key-open" aria-hidden="true"></i><span class="btn__label" data-text="Entrar"><span>Entrar</span></span>
+      </button>
+      <a class="auth__back" href="../site/"><i class="ph ph-arrow-left" aria-hidden="true"></i> Voltar para o site</a>
+    </form>
+
+  </section>
+
+
+  <!-- ===== APP ===== -->
+  <div class="app" id="app" hidden>
+    <aside class="side">
+      <a href="../site/" class="brand side__brand"><img src="../assets/logo.png" alt="" width="40" height="40"><span class="wordmark"><span class="chrome">Atual</span> <span class="red">Sucatas</span></span></a>
+      <nav class="side__nav" aria-label="Painel">
+        <button type="button" data-view="pedidos" class="is-active"><i class="ph ph-package"></i>Pedidos</button>
+        <button type="button" data-view="notas"><i class="ph ph-receipt"></i>Notas fiscais<span class="side__count" id="nf-count"></span></button>
+        <button type="button" data-view="config"><i class="ph ph-gear-six"></i>Configurações</button>
+      </nav>
+      <div class="side__foot">
+        <a href="../site/" target="_blank" rel="noopener"><i class="ph ph-arrow-square-out"></i>Ver site</a>
+        <button type="button" id="logout"><i class="ph ph-sign-out"></i>Sair</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="main__head">
+        <div>
+          <h1 id="view-title">Pedidos</h1>
+          <p id="view-sub">Acompanhe pedidos, entregas e notas fiscais.</p>
+        </div>
+        <button class="btn btn--primary" type="button" id="new-order">
+          <i class="ph ph-plus" aria-hidden="true"></i>
+          <span class="btn__label" data-text="Novo pedido"><span>Novo pedido</span></span>
+        </button>
+      </header>
+
+      <!-- PEDIDOS -->
+      <section class="view" data-view-panel="pedidos">
+        <div class="kpis" id="kpis"></div>
+        <div class="toolbar">
+          <label class="search">
+            <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+            <span class="sr-only">Buscar pedido</span>
+            <input type="search" id="q" placeholder="Buscar por código, cliente, cidade ou peça">
+          </label>
+          <div class="chips" id="chips" role="group" aria-label="Filtrar por situação">
+            <button type="button" data-f="all" class="is-active">Todos</button>
+            <button type="button" data-f="open">Em andamento</button>
+            <button type="button" data-f="done">Entregues</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="orders">
+            <thead><tr><th>Pedido</th><th>Cliente</th><th>Peças</th><th>Total</th><th>Entrega</th><th>Nota fiscal</th><th><span class="sr-only">Abrir</span></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <p class="empty" id="empty" hidden><i class="ph ph-package"></i>Nenhum pedido encontrado.</p>
+        </div>
+      </section>
+
+      <!-- NOTAS -->
+      <section class="view" data-view-panel="notas" hidden>
+        <div class="nf-bar">
+          <label class="field nf-month"><span>Mês de emissão</span><select class="input select" id="nf-month"></select></label>
+          <div class="chips" id="nf-chips" role="group" aria-label="Filtrar notas">
+            <button type="button" data-nf-f="issued" class="is-active">Emitidas</button>
+            <button type="button" data-nf-f="unsent">Não enviadas</button>
+            <button type="button" data-nf-f="sent">Enviadas</button>
+            <button type="button" data-nf-f="pending">Pedidos sem nota</button>
+          </div>
+        </div>
+        <div class="kpis" id="nf-kpis"></div>
+        <div class="table-wrap">
+          <table class="orders">
+            <thead><tr><th>Nota</th><th>Pedido</th><th>Cliente</th><th>Emissão</th><th>Valor</th><th>Envio</th><th><span class="sr-only">Ação</span></th></tr></thead>
+            <tbody id="nf-rows"></tbody>
+          </table>
+          <p class="empty" id="nf-empty" hidden><i class="ph ph-receipt"></i><span id="nf-empty-text">Nenhuma nota neste mês.</span></p>
+        </div>
+      </section>
+
+      <!-- CONFIG -->
+      <section class="view" data-view-panel="config" hidden>
+        <div class="cfg">
+          <form class="cfg__card" id="pw-form">
+            <h2><i class="ph ph-lock-key"></i>Acesso ao painel</h2>
+            <p class="cfg__hint">Usuário atual: <b id="cfg-user"></b></p>
+            <label class="field"><span>Senha atual</span><input class="input" type="password" id="pw-old" autocomplete="current-password" required></label>
+            <label class="field"><span>Novo usuário (opcional)</span><input class="input" type="text" id="user-new" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
+            <label class="field"><span>Nova senha</span><input class="input" type="password" id="pw-new" autocomplete="new-password" minlength="6" required></label>
+            <label class="field"><span>Confirme a nova senha</span><input class="input" type="password" id="pw-new2" autocomplete="new-password" minlength="6" required></label>
+            <div class="cfg__row">
+              <button class="btn btn--primary" type="submit"><span class="btn__label" data-text="Salvar acesso"><span>Salvar acesso</span></span></button>
+            </div>
+          </form>
+          <form class="cfg__card" id="store-form">
+            <h2><i class="ph ph-storefront"></i>Dados da loja na nota</h2>
+            <p class="cfg__hint">O CNPJ aparece no cabeçalho do PDF da nota.</p>
+            <label class="field"><span>CNPJ</span><input class="input" type="text" id="store-cnpj" inputmode="numeric" placeholder="00.000.000/0000-00"></label>
+            <button class="btn btn--line" type="submit"><span class="btn__label" data-text="Salvar dados"><span>Salvar dados</span></span></button>
+          </form>
+          <form class="cfg__card" id="site-form">
+            <h2><i class="ph ph-link"></i>Endereço do site</h2>
+            <p class="cfg__hint">Usado no link de acompanhamento que vai nas mensagens para o cliente. Troque pelo domínio quando o site for publicado.</p>
+            <label class="field"><span>Endereço</span><input class="input" type="url" id="site-url" placeholder="https://www.atualsucatas.com.br/" required></label>
+            <button class="btn btn--line" type="submit"><span class="btn__label" data-text="Salvar endereço"><span>Salvar endereço</span></span></button>
+          </form>
+          <div class="cfg__card">
+            <h2><i class="ph ph-database"></i>Dados de exemplo</h2>
+            <p class="cfg__hint">Apaga as alterações feitas neste navegador e volta aos três pedidos de demonstração.</p>
+            <button class="btn btn--line" type="button" id="reset-demo"><span class="btn__label" data-text="Restaurar exemplos"><span>Restaurar exemplos</span></span></button>
+          </div>
+          <div class="cfg__card cfg__card--note">
+            <h2><i class="ph ph-info"></i>Sobre este protótipo</h2>
+            <p class="cfg__hint">Os pedidos e a senha ficam salvos só neste navegador. A senha impede o acesso casual a este computador, mas o login seguro de verdade, a emissão oficial da NF-e e o envio automático do PDF dependem de um servidor, que entra quando o dono aprovar.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===== ORDER DRAWER ===== -->
+  <dialog class="drawer" id="drawer" aria-labelledby="d-title">
+    <form id="order-form" class="drawer__form" novalidate>
+      <header class="drawer__head">
+        <div><h2 id="d-title">Pedido</h2><p id="d-date"></p></div>
+        <div class="d-meta">
+          <span id="d-status-pill"></span>
+          <button type="button" class="d-track" id="d-track"></button>
+        </div>
+        <button class="track__close" type="button" data-close aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
+      </header>
+      <nav class="tabs" role="tablist" aria-label="Seções do pedido">
+        <button type="button" role="tab" data-tab="cliente" class="is-active"><i class="ph ph-user"></i>Cliente</button>
+        <button type="button" role="tab" data-tab="pecas"><i class="ph ph-wrench"></i>Peças</button>
+        <button type="button" role="tab" data-tab="entrega"><i class="ph ph-truck"></i>Entrega</button>
+        <button type="button" role="tab" data-tab="nota"><i class="ph ph-receipt"></i>Nota fiscal</button>
+        <button type="button" role="tab" data-tab="msg"><i class="ph ph-whatsapp-logo"></i>Mensagens</button>
+      </nav>
+
+      <div class="drawer__body">
+        <section class="tab" data-tab-panel="cliente">
+          <div class="grid2">
+            <label class="field span2"><span>Nome completo *</span><input class="input" name="nome" required></label>
+            <label class="field"><span>WhatsApp com DDD *</span><input class="input" name="whatsapp" inputmode="tel" placeholder="(49) 9 9999-9999" required></label>
+            <label class="field"><span>CPF ou CNPJ</span><input class="input" name="doc" placeholder="Para a nota fiscal"></label>
+            <label class="field span2"><span>Endereço (rua e número)</span><input class="input" name="endereco" placeholder="Para a nota fiscal"></label>
+            <label class="field"><span>Bairro</span><input class="input" name="bairro"></label>
+            <label class="field"><span>CEP</span><input class="input" name="cep" inputmode="numeric" placeholder="00000-000"></label>
+            <label class="field span2"><span>Cidade - UF *</span><input class="input" name="cidade" placeholder="Ex.: Sorocaba - SP" required></label>
+          </div>
+        </section>
+
+        <section class="tab" data-tab-panel="pecas" hidden>
+          <div id="items" class="items"></div>
+          <button class="link-btn" type="button" id="add-item"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar peça</button>
+          <div class="totals">
+            <label class="field"><span>Frete (R$)</span><input class="input" name="frete" type="number" min="0" step="0.01"></label>
+            <div class="totals__sum"><span>Total do pedido</span><strong id="d-total">R$ 0,00</strong></div>
+          </div>
+        </section>
+
+        <section class="tab" data-tab-panel="entrega" hidden>
+          <div class="grid2">
+            <label class="field"><span>Situação</span><select class="input select" name="status" id="d-status"></select></label>
+            <label class="field"><span>Previsão de entrega</span><input class="input" name="previsao" type="date"></label>
+            <label class="field"><span>Transportadora</span><input class="input" name="transportadora" placeholder="Correios, transportadora ou retirada"></label>
+            <label class="field"><span>Código de rastreio</span><input class="input" name="rastreio" placeholder="Opcional"></label>
+          </div>
+          <h3 class="sub">Histórico</h3>
+          <ol class="timeline" id="d-history"></ol>
+        </section>
+
+        <section class="tab" data-tab-panel="nota" hidden>
+          <div id="nf-box" class="nf-box"></div>
+        </section>
+
+        <section class="tab" data-tab-panel="msg" hidden>
+          <div class="tpl" id="tpl" role="group" aria-label="Modelo de mensagem">
+            <button type="button" data-tpl="criado" class="is-active"><i class="ph ph-check-circle"></i>Pedido registrado</button>
+            <button type="button" data-tpl="status"><i class="ph ph-truck"></i>Atualização de entrega</button>
+            <button type="button" data-tpl="nota"><i class="ph ph-receipt"></i>Nota fiscal</button>
+          </div>
+          <div class="wa">
+            <div class="wa__bubble" id="wa-preview"></div>
+          </div>
+          <p class="wa__note" id="wa-note"></p>
+          <div class="wa__actions">
+            <button class="btn btn--whats" type="button" id="wa-share" hidden><i class="ph ph-paperclip"></i><span class="btn__label" data-text="Enviar com o PDF"><span>Enviar com o PDF</span></span></button>
+            <button class="btn btn--whats" type="button" id="wa-send"><i class="ph ph-whatsapp-logo"></i><span class="btn__label" data-text="Enviar no WhatsApp"><span>Enviar no WhatsApp</span></span></button>
+            <button class="btn btn--line" type="button" id="wa-pdf" hidden><i class="ph ph-file-pdf"></i><span class="btn__label" data-text="Baixar PDF"><span>Baixar PDF</span></span></button>
+            <button class="btn btn--line" type="button" id="wa-copy"><i class="ph ph-copy"></i><span class="btn__label" data-text="Copiar texto"><span>Copiar texto</span></span></button>
+          </div>
+        </section>
+      </div>
+
+      <footer class="drawer__foot">
+        <button class="btn btn--line" type="button" data-close><span class="btn__label" data-text="Cancelar"><span>Cancelar</span></span></button>
+        <button class="btn btn--primary" type="submit"><i class="ph ph-check" aria-hidden="true"></i><span class="btn__label" data-text="Salvar pedido"><span>Salvar pedido</span></span></button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- NF PREVIEW -->
+  <dialog class="nf-dialog" id="nf-dialog" aria-label="Nota fiscal em PDF">
+    <iframe class="nf-frame" id="nf-frame" title="Nota fiscal em PDF"></iframe>
+    <div class="nf-actions">
+      <button class="btn btn--line" type="button" data-close><span class="btn__label" data-text="Fechar"><span>Fechar</span></span></button>
+      <button class="btn btn--primary" type="button" id="nf-download"><i class="ph ph-file-pdf" aria-hidden="true"></i><span class="btn__label" data-text="Baixar PDF"><span>Baixar PDF</span></span></button>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="../compartilhado/orders.js?v=10"></script>
+  <script src="painel.js?v=20"></script>
+</body>
+</html>

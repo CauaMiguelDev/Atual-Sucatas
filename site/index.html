@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Atual Sucatas | Peças automotivas com nota fiscal em Chapecó</title>
+  <meta name="description" content="Desmanche credenciado pelo DETRAN-SC em Chapecó. Peças automotivas originais usadas, com garantia e nota fiscal. Enviamos para todo o Brasil.">
+  <meta name="theme-color" content="#0c0c0e">
+  <meta property="og:title" content="Atual Sucatas | Peça original. Preço de sucata.">
+  <meta property="og:description" content="Desmanche credenciado pelo DETRAN-SC. Garantia e nota fiscal em todas as peças. Enviamos para todo o Brasil.">
+  <meta property="og:image" content="../assets/ig/santafe.jpg">
+  <link rel="icon" href="../assets/logo.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@0,75..125,400..900;1,75..125,600..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+  <link rel="stylesheet" href="style.css?v=10">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "AutoPartsStore",
+    "name": "Atual Comércio de Sucatas",
+    "image": "../assets/ig/santafe.jpg",
+    "telephone": "+55 49 99104-1665",
+    "address": { "@type": "PostalAddress", "streetAddress": "R. Horaide Prestes de Souza, 65 - Vila Real", "addressLocality": "Chapecó", "addressRegion": "SC", "postalCode": "89805-807", "addressCountry": "BR" },
+    "openingHoursSpecification": [
+      { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"], "opens": "08:00", "closes": "18:00" },
+      { "@type": "OpeningHoursSpecification", "dayOfWeek": "Saturday", "opens": "08:00", "closes": "12:00" }
+    ],
+    "sameAs": ["https://www.instagram.com/atual.sucatas2019/"]
+  }
+  </script>
+</head>
+<body>
+<!--
+THESIS: The site is the Atual Sucatas badge, opened up: black ground, chrome "ATUAL", red "SUCATAS", the gear arc. Refuses generic autopeças templates and anything that fights the logo.
+OWN-WORLD: Near-black ground with a low red glow; chrome-silver gradient only on brand display words; logo red for action and emphasis; machined gear rings as the one ornament; Saira heavy italic (wide) for display, Saira upright for text.
+STORY: Visitor recognizes the brand, sees proof (DETRAN-SC, garantia, nota fiscal, envio), sees real cars and parts, picks their path (dono de carro ou oficina), asks for a quote on WhatsApp or tracks an order.
+FIRST VIEWPORT: Left: chrome "Peça original." over red "Preço de sucata.", quote CTA. Right: real yard photo framed by a slowly turning gear ring, the round brand badge overlapping its corner.
+FORM: brand-pinned by the user (logo world), replaces the rejected label world of seed d5a8be14.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+-->
+  <span id="top-sentinel" aria-hidden="true"></span>
+
+  <!-- UTILITY BAR -->
+  <div class="util">
+    <div class="wrap util__inner">
+      <span class="util__status" id="open-status"><i aria-hidden="true"></i><span>Seg a sex, 8h às 18h · Sáb, 8h às 12h</span></span>
+      <a href="tel:+5549991041665" class="util__link"><i class="ph ph-phone" aria-hidden="true"></i>(49) 9 9104-1665</a>
+      <a href="#contato" class="util__link util__addr"><i class="ph ph-map-pin" aria-hidden="true"></i>R. Horaide Prestes de Souza, 65 · Chapecó - SC</a>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <header class="nav" id="nav">
+    <div class="wrap nav__bar">
+      <a href="#inicio" class="brand" aria-label="Atual Sucatas, início">
+        <img src="../assets/logo.png" alt="" width="46" height="46">
+        <span class="wordmark"><span class="chrome">Atual</span> <span class="red">Sucatas</span></span>
+      </a>
+      <nav class="nav__links" aria-label="Principal">
+        <a href="#procedencia">Procedência</a>
+        <a href="#pecas">Peças</a>
+        <a href="#patio">Pátio</a>
+        <a href="#comprar">Como comprar</a>
+        <a href="#contato">Contato</a>
+      </nav>
+      <button class="btn btn--line btn--sm nav__track" type="button" data-open-track>
+        <i class="ph ph-package" aria-hidden="true"></i>
+        <span class="btn__label" data-text="Rastrear pedido"><span>Rastrear pedido</span></span>
+      </button>
+      <a class="btn btn--primary btn--sm nav__cta" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Quero%20um%20or%C3%A7amento." target="_blank" rel="noopener">
+        <i class="ph ph-whatsapp-logo" aria-hidden="true"></i>
+        <span class="btn__label" data-text="Pedir orçamento"><span>Pedir orçamento</span></span>
+      </a>
+      <button class="nav__icon nav__track-sm" type="button" data-open-track aria-label="Rastrear pedido"><i class="ph ph-package" aria-hidden="true"></i></button>
+      <button class="nav__icon nav__burger" id="burger" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><span></span><span></span></button>
+    </div>
+    <nav class="menu wrap" id="menu" aria-label="Menu móvel" hidden>
+      <a href="#procedencia">Procedência</a>
+      <a href="#pecas">Peças</a>
+      <a href="#patio">Pátio</a>
+      <a href="#comprar">Como comprar</a>
+      <a href="#duvidas">Dúvidas</a>
+      <a href="#contato">Contato</a>
+      <a class="btn btn--primary" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Quero%20um%20or%C3%A7amento." target="_blank" rel="noopener">
+        <i class="ph ph-whatsapp-logo" aria-hidden="true"></i>
+        <span class="btn__label" data-text="Pedir orçamento"><span>Pedir orçamento</span></span>
+      </a>
+    </nav>
+  </header>
+
+  <main id="inicio">
+    <!-- HERO -->
+    <section class="hero wrap">
+      <div class="hero__copy">
+        <h1 class="hero__title" aria-label="Peça original. Preço de sucata.">
+          <span class="line" aria-hidden="true"><span class="rise chrome" style="--d:0">Peça original.</span></span>
+          <span class="line" aria-hidden="true"><span class="rise" style="--d:1">Preço de <span class="red">sucata.</span></span></span>
+        </h1>
+        <p class="hero__sub in" style="--d:2">Desmanche credenciado pelo DETRAN-SC em Chapecó. Peças automotivas originais com <strong>garantia e nota fiscal</strong>, para retirar na loja ou receber em qualquer lugar do Brasil.</p>
+        <div class="hero__ctas in" style="--d:3">
+          <a class="btn btn--primary btn--lg" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Quero%20um%20or%C3%A7amento." target="_blank" rel="noopener">
+            <i class="ph ph-whatsapp-logo" aria-hidden="true"></i>
+            <span class="btn__label" data-text="Pedir orçamento"><span>Pedir orçamento</span></span>
+          </a>
+          <a class="btn btn--line btn--lg" href="#patio">
+            <span class="btn__label" data-text="Ver o pátio"><span>Ver o pátio</span></span>
+            <i class="ph ph-arrow-down-right btn__arrow" aria-hidden="true"></i>
+          </a>
+        </div>
+      </div>
+
+      <div class="hero__stage in" style="--d:1">
+        <span class="gear gear--hero" data-gear="40" aria-hidden="true"></span>
+        <figure class="hero__photo">
+          <img src="../assets/ig/santafe.jpg" alt="Pátio da Atual Sucatas: Hyundai Santa Fé em frente às prateleiras de carros para desmonte" width="640" height="570">
+        </figure>
+        <div class="badge" aria-hidden="true">
+          <svg class="badge__ring" viewBox="0 0 200 200">
+            <defs><path id="ring" d="M100,100 m-82,0 a82,82 0 1,1 164,0 a82,82 0 1,1 -164,0"/></defs>
+            <text><textPath href="#ring">PEÇAS • LATARIA • ACESSÓRIOS • DESDE 2019 • CHAPECÓ SC •</textPath></text>
+          </svg>
+          <img src="../assets/logo.png" alt="" width="120" height="120">
+        </div>
+        <div class="hero__chip">
+          <i class="ph ph-seal-check" aria-hidden="true"></i>
+          <div><strong>Credenciada DETRAN&#8209;SC</strong><span>Garantia e nota fiscal em todas as peças</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRUST STRIP -->
+    <section class="trust" aria-label="Diferenciais">
+      <div class="wrap trust__grid">
+        <div class="trust__item reveal"><i class="ph ph-shield-check" aria-hidden="true"></i><div><strong>Credenciada DETRAN-SC</strong><span>Desmonte legal, Lei 12.977</span></div></div>
+        <div class="trust__item reveal"><i class="ph ph-receipt" aria-hidden="true"></i><div><strong>Nota fiscal</strong><span>Em toda venda</span></div></div>
+        <div class="trust__item reveal"><i class="ph ph-handshake" aria-hidden="true"></i><div><strong>Garantia</strong><span>Em todas as peças</span></div></div>
+        <div class="trust__item reveal"><i class="ph ph-truck" aria-hidden="true"></i><div><strong>Envio para todo o Brasil</strong><span>Frete pelo WhatsApp</span></div></div>
+      </div>
+    </section>
+
+    <!-- PROCEDÊNCIA -->
+    <section class="section wrap prov" id="procedencia">
+      <div class="prov__copy">
+        <h2 class="h2 split">Toda peça tem origem. A gente mostra qual.</h2>
+        <p class="lead reveal">Somos credenciados pelo DETRAN-SC e trabalhamos dentro da Lei do Desmonte. Cada peça vem de veículo regularizado, é identificada no desmonte e vendida com nota fiscal. Você instala sabendo de onde ela veio.</p>
+        <dl class="proofs">
+          <div class="proof reveal"><i class="ph ph-shield-check" aria-hidden="true"></i><dt>Credenciada pelo DETRAN-SC</dt><dd>Desmonte legal, conforme a Lei 12.977/2014.</dd></div>
+          <div class="proof reveal"><i class="ph ph-receipt" aria-hidden="true"></i><dt>Nota fiscal em toda venda</dt><dd>Documento para você, para a oficina e para o seguro.</dd></div>
+          <div class="proof reveal"><i class="ph ph-handshake" aria-hidden="true"></i><dt>Garantia em todas as peças</dt><dd>Peça original, pelo preço de usada, com respaldo.</dd></div>
+        </dl>
+      </div>
+      <figure class="annot reveal-clip">
+        <img src="../assets/ig/golf-gti.jpg" alt="Frente completa de Golf GTI 7.5 na loja, com faróis organizados na prateleira ao fundo" loading="lazy" width="572" height="640">
+        <span class="pin" style="--x:52%;--y:36%;--i:0"><i></i><b>Capô</b></span>
+        <span class="pin" style="--x:28%;--y:63%;--i:1"><i></i><b>Grade GTI</b></span>
+        <span class="pin pin--l" style="--x:74%;--y:21%;--i:2"><i></i><b>Faróis em estoque</b></span>
+        <span class="pin" style="--x:20%;--y:80%;--i:3"><i></i><b>Para-choque</b></span>
+        <figcaption>Frente completa de Golf GTI 7.5, disponível na loja.</figcaption>
+      </figure>
+    </section>
+
+    <!-- PARA QUEM -->
+    <section class="section wrap">
+      <h2 class="h2 split">Seja para o seu carro ou para a sua oficina.</h2>
+      <div class="who">
+        <article class="who__card reveal" style="--img:url('../assets/ig/mini.jpg')">
+          <span class="who__tag"><i class="ph ph-car-profile" aria-hidden="true"></i>Para quem tem carro</span>
+          <h3>Pague menos sem correr risco.</h3>
+          <p>Mande o modelo, o ano e uma foto da peça. A gente responde com o preço e a foto da peça real que vai para o seu carro.</p>
+          <ul class="ticks">
+            <li><i class="ph ph-check" aria-hidden="true"></i>Peça original, com nota e garantia</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i>Retire na loja ou receba em casa</li>
+          </ul>
+          <a class="btn btn--primary" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Preciso%20de%20uma%20pe%C3%A7a%20para%20o%20meu%20carro." target="_blank" rel="noopener">
+            <i class="ph ph-whatsapp-logo" aria-hidden="true"></i><span class="btn__label" data-text="Pedir orçamento"><span>Pedir orçamento</span></span>
+          </a>
+        </article>
+        <article class="who__card reveal" style="--img:url('../assets/ig/engates.jpg')">
+          <span class="who__tag"><i class="ph ph-wrench" aria-hidden="true"></i>Para oficinas e mecânicos</span>
+          <h3>Código na mão, peça separada.</h3>
+          <p>Passe o código ou a descrição. A gente confere no estoque e separa para retirada ou envio, sempre com nota fiscal.</p>
+          <ul class="ticks">
+            <li><i class="ph ph-check" aria-hidden="true"></i>Nota fiscal e garantia em toda peça</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i>Acompanhe a entrega pelo código do pedido</li>
+          </ul>
+          <a class="btn btn--primary" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Sou%20de%20oficina%20e%20preciso%20de%20uma%20pe%C3%A7a." target="_blank" rel="noopener">
+            <i class="ph ph-whatsapp-logo" aria-hidden="true"></i><span class="btn__label" data-text="Pedir orçamento"><span>Pedir orçamento</span></span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <!-- PEÇAS -->
+    <section class="section wrap" id="pecas">
+      <div class="head-row">
+        <h2 class="h2 split">Do motor ao engate.</h2>
+        <p class="lead reveal">Toque na categoria e a pergunta já vai pronta para o WhatsApp.</p>
+      </div>
+      <ul class="shelf">
+        <li class="reveal"><a href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Procuro%20pe%C3%A7a%20de%20motor%20ou%20c%C3%A2mbio." target="_blank" rel="noopener"><i class="ph ph-engine" aria-hidden="true"></i><span class="shelf__name">Motor e câmbio</span><span class="shelf__ex">Motores, cabeçotes, caixas</span><i class="ph ph-arrow-up-right shelf__go" aria-hidden="true"></i></a></li>
+        <li class="reveal"><a href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Procuro%20pe%C3%A7a%20de%20lataria." target="_blank" rel="noopener"><i class="ph ph-car-profile" aria-hidden="true"></i><span class="shelf__name">Lataria e para-choques</span><span class="shelf__ex">Capôs, portas, frentes completas</span><i class="ph ph-arrow-up-right shelf__go" aria-hidden="true"></i></a></li>
+        <li class="reveal"><a href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Procuro%20pe%C3%A7a%20de%20suspens%C3%A3o%20ou%20freio." target="_blank" rel="noopener"><i class="ph ph-tire" aria-hidden="true"></i><span class="shelf__name">Suspensão e freios</span><span class="shelf__ex">Amortecedores, bandejas, discos</span><i class="ph ph-arrow-up-right shelf__go" aria-hidden="true"></i></a></li>
+        <li class="reveal"><a href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Procuro%20pe%C3%A7a%20el%C3%A9trica%20ou%20m%C3%B3dulo." target="_blank" rel="noopener"><i class="ph ph-lightning" aria-hidden="true"></i><span class="shelf__name">Elétrica e módulos</span><span class="shelf__ex">Módulos, chicotes, alternadores</span><i class="ph ph-arrow-up-right shelf__go" aria-hidden="true"></i></a></li>
+        <li class="reveal"><a href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Procuro%20farol%20ou%20lanterna." target="_blank" rel="noopener"><i class="ph ph-headlights" aria-hidden="true"></i><span class="shelf__name">Faróis e lanternas</span><span class="shelf__ex">Faróis, lanternas, milhas</span><i class="ph ph-arrow-up-right shelf__go" aria-hidden="true"></i></a></li>
+        <li class="reveal"><a href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Procuro%20engate." target="_blank" rel="noopener"><i class="ph ph-wrench" aria-hidden="true"></i><span class="shelf__name">Engates</span><span class="shelf__ex">Todos os modelos</span><i class="ph ph-arrow-up-right shelf__go" aria-hidden="true"></i></a></li>
+      </ul>
+    </section>
+
+    <!-- PÁTIO -->
+    <section class="section wrap" id="patio">
+      <div class="head-row">
+        <h2 class="h2 split">No pátio agora.</h2>
+        <p class="lead reveal">Veículos disponíveis para retirada de peças. Toque no carro e pergunte o que você precisa.</p>
+      </div>
+      <div class="yard">
+        <a class="car car--feat reveal" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Tenho%20interesse%20em%20pe%C3%A7as%20da%20sucata%20Mini%20Cooper%202015." target="_blank" rel="noopener">
+          <img src="../assets/ig/mini.jpg" alt="Mini Cooper 2015 branco no pátio" loading="lazy">
+          <div class="car__info"><span class="car__new">Chegou agora</span><strong>Mini Cooper 2015</strong><span class="car__data">Gasolina · 136 cv</span><span class="car__ask">Perguntar peça <i class="ph ph-arrow-up-right" aria-hidden="true"></i></span></div>
+        </a>
+        <a class="car reveal" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Tenho%20interesse%20em%20pe%C3%A7as%20da%20sucata%20Hyundai%20i30%202014." target="_blank" rel="noopener"><img src="../assets/ig/i30.jpg" alt="Hyundai i30 2014" loading="lazy"><div class="car__info"><strong>Hyundai i30 2014</strong><span class="car__data">Gasolina · 150 cv</span></div></a>
+        <a class="car reveal" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Tenho%20interesse%20em%20pe%C3%A7as%20da%20sucata%20Hyundai%20Santa%20F%C3%A9%203.5." target="_blank" rel="noopener"><img src="../assets/ig/santafe.jpg" alt="Hyundai Santa Fé 3.5" loading="lazy"><div class="car__info"><strong>Santa Fé 3.5 V6</strong><span class="car__data">2011/2012 · 285 cv</span></div></a>
+        <a class="car reveal" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Tenho%20interesse%20em%20pe%C3%A7as%20da%20sucata%20BYD%20King%20GL%202025." target="_blank" rel="noopener"><img src="../assets/ig/byd-king.jpg" alt="BYD King GL 2025" loading="lazy"><div class="car__info"><strong>BYD King GL 2025</strong><span class="car__data">Híbrido · 235 cv</span></div></a>
+        <a class="car reveal" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Tenho%20interesse%20em%20pe%C3%A7as%20da%20sucata%20Ford%20Fusion%203.0%20V6." target="_blank" rel="noopener"><img src="../assets/ig/fusion.jpg" alt="Ford Fusion 3.0 V6" loading="lazy"><div class="car__info"><strong>Ford Fusion 3.0 V6</strong><span class="car__data">4x4 · 2010/2011</span></div></a>
+        <a class="car reveal" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Tenho%20interesse%20em%20pe%C3%A7as%20da%20sucata%20VW%20Jetta%202015%2F2016." target="_blank" rel="noopener"><img src="../assets/ig/jetta.jpg" alt="VW Jetta 2015/2016" loading="lazy"><div class="car__info"><strong>VW Jetta</strong><span class="car__data">2015/2016</span></div></a>
+        <a class="car reveal" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Tenho%20interesse%20em%20pe%C3%A7as%20da%20sucata%20Chevrolet%20S10." target="_blank" rel="noopener"><img src="../assets/ig/s10.jpg" alt="Chevrolet S10" loading="lazy"><div class="car__info"><strong>Chevrolet S10</strong><span class="car__data">Picape</span></div></a>
+        <a class="car reveal" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Tenho%20interesse%20em%20pe%C3%A7as%20da%20sucata%20Chevrolet%20Spin%202023." target="_blank" rel="noopener"><img src="../assets/ig/spin.jpg" alt="Chevrolet Spin 1.8 2023" loading="lazy"><div class="car__info"><strong>Chevrolet Spin 2023</strong><span class="car__data">Flex · 111 cv</span></div></a>
+        <a class="car reveal" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Tenho%20interesse%20em%20pe%C3%A7as%20da%20sucata%20Toyota%20Corolla%202013." target="_blank" rel="noopener"><img src="../assets/ig/corolla.jpg" alt="Toyota Corolla 2013" loading="lazy"><div class="car__info"><strong>Toyota Corolla 2013</strong><span class="car__data">Muitas peças</span></div></a>
+        <a class="car reveal" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Tenho%20interesse%20na%20frente%20do%20Golf%20GTI%207.5." target="_blank" rel="noopener"><img src="../assets/ig/golf-gti.jpg" alt="Frente completa Golf GTI 7.5" loading="lazy"><div class="car__info"><strong>Golf GTI 7.5</strong><span class="car__data">Frente completa</span></div></a>
+        <a class="car reveal" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Tenho%20interesse%20em%20engates." target="_blank" rel="noopener"><img src="../assets/ig/engates.jpg" alt="Engates de reboque na parede da loja" loading="lazy"><div class="car__info"><strong>Engates</strong><span class="car__data">Todos os modelos</span></div></a>
+        <a class="car car--ig reveal" href="https://www.instagram.com/atual.sucatas2019/" target="_blank" rel="noopener">
+          <span class="gear gear--card" data-gear="24" aria-hidden="true"></span>
+          <i class="ph ph-instagram-logo" aria-hidden="true"></i>
+          <strong>Chega carro novo toda semana.</strong>
+          <span>Acompanhe o pátio no Instagram <i class="ph ph-arrow-up-right" aria-hidden="true"></i></span>
+        </a>
+      </div>
+    </section>
+
+    <!-- COMO COMPRAR + RASTREIO -->
+    <section class="section wrap" id="comprar">
+      <h2 class="h2 split">Do orçamento à entrega.</h2>
+      <ol class="steps">
+        <li class="step reveal"><span class="step__icon"><i class="ph ph-camera" aria-hidden="true"></i></span><h3>Mande a foto</h3><p>Pelo WhatsApp, com modelo, ano e uma foto da peça. Se tiver o código, melhor.</p></li>
+        <li class="step reveal"><span class="step__icon"><i class="ph ph-chat-circle-text" aria-hidden="true"></i></span><h3>Receba o orçamento</h3><p>Conferimos no estoque e respondemos com preço e foto da peça real.</p></li>
+        <li class="step reveal"><span class="step__icon"><i class="ph ph-receipt" aria-hidden="true"></i></span><h3>Feche com nota</h3><p>Pagamento combinado e nota fiscal emitida na compra.</p></li>
+        <li class="step reveal"><span class="step__icon"><i class="ph ph-truck" aria-hidden="true"></i></span><h3>Retire ou receba</h3><p>Na loja em Chapecó ou em casa, com código para acompanhar.</p></li>
+      </ol>
+      <form class="track-inline reveal" id="track-inline">
+        <div class="track-inline__text">
+          <h3>Já comprou? Acompanhe seu pedido.</h3>
+          <p>Digite o código do pedido ou o código de rastreio que você recebeu no WhatsApp.</p>
+        </div>
+        <label for="track-inline-code" class="sr-only">Código do pedido</label>
+        <input id="track-inline-code" class="input" type="text" placeholder="Pedido ou rastreio" autocomplete="off" required>
+        <button class="btn btn--primary" type="submit"><i class="ph ph-package" aria-hidden="true"></i><span class="btn__label" data-text="Rastrear"><span>Rastrear</span></span></button>
+      </form>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+      <span class="gear gear--cta" data-gear="32" aria-hidden="true"></span>
+      <div class="wrap cta__inner">
+        <div>
+          <h2 class="cta__title split">Não achou a peça?</h2>
+          <p class="reveal">Mande a foto no WhatsApp. A gente procura no estoque e responde com foto e preço.</p>
+        </div>
+        <a class="btn btn--light btn--lg reveal" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Estou%20procurando%20uma%20pe%C3%A7a." target="_blank" rel="noopener">
+          <i class="ph ph-whatsapp-logo" aria-hidden="true"></i>
+          <span class="btn__label" data-text="Pedir orçamento"><span>Pedir orçamento</span></span>
+        </a>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section wrap faq-wrap" id="duvidas">
+      <div>
+        <h2 class="h2 split">Perguntas frequentes.</h2>
+        <p class="lead reveal">Não achou sua dúvida? Chame no WhatsApp, a gente responde.</p>
+      </div>
+      <div class="faq">
+        <details class="reveal"><summary>As peças têm garantia?</summary><p>Sim. Todas as peças saem com garantia e nota fiscal.</p></details>
+        <details class="reveal"><summary>A empresa é legalizada?</summary><p>Sim. Somos credenciados pelo DETRAN-SC e trabalhamos conforme a Lei 12.977/2014, a Lei do Desmonte.</p></details>
+        <details class="reveal"><summary>Vocês enviam para outras cidades?</summary><p>Enviamos para todo o Brasil. O frete é calculado pelo WhatsApp de acordo com a peça e o destino.</p></details>
+        <details class="reveal"><summary>Como acompanho meu pedido?</summary><p>Clique em Rastrear pedido, no topo do site, e digite o código que você recebeu no WhatsApp.</p></details>
+        <details class="reveal"><summary>Qual o horário de atendimento?</summary><p>De segunda a sexta, das 8h às 18h, e aos sábados, das 8h às 12h.</p></details>
+      </div>
+    </section>
+
+    <!-- CONTATO -->
+    <section class="section wrap contact" id="contato">
+      <article class="contact__card reveal">
+        <h2 class="h2">Venha até a loja.</h2>
+        <dl class="contact__list">
+          <div><dt><i class="ph ph-map-pin" aria-hidden="true"></i>Endereço</dt><dd>R. Horaide Prestes de Souza, 65<br>Vila Real, Chapecó - SC, 89805-807</dd></div>
+          <div><dt><i class="ph ph-clock" aria-hidden="true"></i>Horário</dt><dd>Seg a sex, 8h às 18h<br>Sáb, 8h às 12h</dd></div>
+          <div><dt><i class="ph ph-whatsapp-logo" aria-hidden="true"></i>WhatsApp</dt><dd><a href="https://wa.me/5549991041665" target="_blank" rel="noopener">(49) 9 9104-1665</a></dd></div>
+          <div><dt><i class="ph ph-instagram-logo" aria-hidden="true"></i>Instagram</dt><dd><a href="https://www.instagram.com/atual.sucatas2019/" target="_blank" rel="noopener">@atual.sucatas2019</a></dd></div>
+        </dl>
+        <div class="contact__ctas">
+          <a class="btn btn--primary" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Quero%20um%20or%C3%A7amento." target="_blank" rel="noopener"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i><span class="btn__label" data-text="Pedir orçamento"><span>Pedir orçamento</span></span></a>
+          <a class="btn btn--line" href="https://www.google.com/maps/search/?api=1&query=R.%20Horaide%20Prestes%20de%20Souza%2C%2065%2C%20Chapec%C3%B3%20-%20SC" target="_blank" rel="noopener"><i class="ph ph-navigation-arrow" aria-hidden="true"></i><span class="btn__label" data-text="Como chegar"><span>Como chegar</span></span></a>
+        </div>
+      </article>
+      <div class="map reveal-clip">
+        <iframe title="Mapa da Atual Sucatas em Chapecó" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+          src="https://www.google.com/maps?q=R.%20Horaide%20Prestes%20de%20Souza%2C%2065%20-%20Vila%20Real%2C%20Chapec%C3%B3%20-%20SC%2C%2089805-807&output=embed"></iframe>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer__grid">
+      <div class="footer__brand">
+        <a href="#inicio" class="brand"><img src="../assets/logo.png" alt="" width="56" height="56"><span class="wordmark wordmark--lg"><span class="chrome">Atual</span> <span class="red">Sucatas</span></span></a>
+        <p>Peças, lataria e acessórios. Desmanche credenciado pelo DETRAN-SC, conforme a Lei 12.977/2014. Garantia e nota fiscal em todas as peças.</p>
+      </div>
+      <nav aria-label="Site">
+        <h4>Site</h4>
+        <a href="#procedencia">Procedência</a><a href="#pecas">Peças</a><a href="#patio">Pátio</a><a href="#comprar">Como comprar</a><a href="#duvidas">Dúvidas</a>
+      </nav>
+      <nav aria-label="Atendimento">
+        <h4>Atendimento</h4>
+        <a href="https://wa.me/5549991041665" target="_blank" rel="noopener">WhatsApp (49) 9 9104-1665</a>
+        <button type="button" data-open-track>Rastrear pedido</button>
+        <a href="https://www.instagram.com/atual.sucatas2019/" target="_blank" rel="noopener">Instagram</a>
+      </nav>
+      <div>
+        <h4>Loja</h4>
+        <p>R. Horaide Prestes de Souza, 65<br>Vila Real, Chapecó - SC</p>
+        <p>Seg a sex, 8h às 18h<br>Sáb, 8h às 12h</p>
+      </div>
+    </div>
+    <div class="wrap footer__base">
+      <span>© <span id="year">2026</span> Atual Comércio de Sucatas</span>
+      <a href="../painel/">Acesso da loja</a>
+    </div>
+  </footer>
+
+  <a class="fab" id="fab" href="https://wa.me/5549991041665?text=Ol%C3%A1!%20Quero%20um%20or%C3%A7amento." target="_blank" rel="noopener" aria-label="Pedir orçamento no WhatsApp"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i><span>Pedir orçamento</span></a>
+
+  <!-- RASTREAR PEDIDO -->
+  <dialog class="track" id="track" aria-labelledby="track-title">
+    <button class="track__close" type="button" data-close aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
+    <i class="ph ph-package track__icon" aria-hidden="true"></i>
+    <h2 id="track-title">Rastrear pedido</h2>
+    <p class="track__hint">Digite o código do pedido ou o código de rastreio que você recebeu no WhatsApp.</p>
+    <form class="track__form" id="track-form">
+      <label for="track-code" class="sr-only">Código do pedido ou de rastreio</label>
+      <input id="track-code" class="input" name="codigo" type="text" placeholder="Ex.: AS-1024 ou QB123456789BR" autocomplete="off" required>
+      <button class="btn btn--primary" type="submit"><span class="btn__label" data-text="Rastrear"><span>Rastrear</span></span></button>
+    </form>
+    <div class="track__result" id="track-result" aria-live="polite"></div>
+    <p class="track__demo">Demonstração: teste com AS-1024 ou QB123456789BR.</p>
+  </dialog>
+
+  <script src="../compartilhado/orders.js?v=10"></script>
+  <script src="main.js?v=10"></script>
+</body>
+</html>
