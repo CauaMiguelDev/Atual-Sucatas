@@ -440,7 +440,7 @@ tr:hover .o-open { background: var(--red); border-color: var(--red); }
 }
 
 /* ---------- admin area (painel/admin.html) ---------- */
-.adm[hidden], .adm-key[hidden] { display: none !important; }
+.adm[hidden] { display: none !important; }
 .adm__head { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem clamp(1.2rem, 3vw, 2.6rem); background: rgba(8, 8, 10, .92); border-bottom: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .adm__head .side__brand { padding: 0; }
 .adm__actions { display: flex; align-items: center; gap: .6rem; }
@@ -456,11 +456,6 @@ tr:hover .o-open { background: var(--red); border-color: var(--red); }
 .adm__table { min-width: 640px; }
 .adm__table tbody tr { cursor: default; }
 .adm__table tbody tr:hover { background: none; }
-.adm-key { display: grid; gap: .7rem; margin-top: .4rem; text-align: left; }
-.adm-key p { color: var(--muted); font-size: .9rem; line-height: 1.5; }
-.adm-key p b { color: var(--text); }
-.adm-key code { display: block; padding: .85rem; border-radius: 10px; background: var(--black); border: 1px dashed rgba(225, 38, 45, .6); color: #fff; font: 600 .78rem/1.55 ui-monospace, "Cascadia Mono", Consolas, monospace; word-break: break-all; user-select: all; }
-.adm-key .btn { justify-self: start; }
 @media (max-width: 700px) {
   .adm__table { min-width: 0; }
   .adm__table tr { padding-right: 1.1rem; }
@@ -469,3 +464,8 @@ tr:hover .o-open { background: var(--red); border-color: var(--red); }
 @media (max-width: 560px) {
   .adm__head .wordmark { display: none; }
 }
+
+/* Configurações: the access card spans two rows so the administrator card sits under the store card */
+.cfg__error { min-height: 0; margin-top: -.4rem; }
+.cfg__error:empty { display: none; }
+@media (min-width: 1081px) { #pw-form { grid-row: span 2; } }

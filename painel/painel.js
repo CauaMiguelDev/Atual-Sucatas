@@ -213,7 +213,7 @@ function setView(v) {
   $$('[data-view-panel]').forEach(p => (p.hidden = p.dataset.viewPanel !== v));
   [$('#view-title').textContent, $('#view-sub').textContent] = VIEWS[v];
   $('#new-order').hidden = v === 'config';
-  if (v === 'config') { $('#site-url').value = siteUrl(); $('#store-cnpj').value = storeCnpj(); $('#cfg-user').textContent = readAuth()?.user || ''; }
+  if (v === 'config') { showAdminLock(); $('#site-url').value = siteUrl(); $('#store-cnpj').value = storeCnpj(); $('#cfg-user').textContent = readAuth()?.user || ''; }
 }
 $$('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
 
@@ -375,6 +375,27 @@ $('#site-form').addEventListener('submit', e => {
   if (!/^https?:\/\//.test(url)) url = `https://${url}`;
   localStorage.setItem(SITE_KEY, url);
   toast('Endereço do site salvo.');
+});
+/* administrator entry: correct password opens admin.html (check, lock and session in admin-acesso.js) */
+let adminTimer;
+function showAdminLock() {
+  clearInterval(adminTimer);
+  const tick = () => {
+    const locked = ADMIN.lockedFor() > 0;
+    $('#admin-pw').disabled = $('#admin-submit').disabled = locked;
+    if (locked) $('#admin-error').textContent = ADMIN.message();
+    else { clearInterval(adminTimer); if ($('#admin-error').textContent.startsWith('Muitas')) $('#admin-error').textContent = ''; }
+  };
+  tick();
+  if (ADMIN.lockedFor()) adminTimer = setInterval(tick, 1000);
+}
+$('#admin-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const r = await ADMIN.check($('#admin-pw').value);
+  $('#admin-pw').value = '';
+  if (r.ok) return void (location.href = 'admin.html');
+  $('#admin-error').textContent = ADMIN.message(r);
+  if (r.locked) showAdminLock();
 });
 $('#reset-demo').addEventListener('click', () => {
   if (!confirm('Restaurar os pedidos de exemplo? As alterações feitas neste navegador serão apagadas.')) return;

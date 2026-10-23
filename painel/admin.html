@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@0,75..125,400..900;1,75..125,600..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
   <link rel="stylesheet" href="../site/style.css?v=12">
-  <link rel="stylesheet" href="painel.css?v=23">
+  <link rel="stylesheet" href="painel.css?v=24">
 </head>
 <body class="panel">
 
@@ -24,7 +24,7 @@
       <h1 class="auth__title" id="auth-title">Área do administrador</h1>
       <p class="auth__hint" id="auth-hint">Acesso restrito ao administrador do site.</p>
 
-      <input type="text" name="username" value="administrador" autocomplete="username" hidden>
+      <input type="text" name="username" value="admin" autocomplete="username" hidden>
       <label class="field">
         <span>Senha do administrador</span>
         <span class="field__pw">
@@ -32,17 +32,7 @@
           <button type="button" class="field__eye" data-eye="pw" aria-label="Mostrar senha"><i class="ph ph-eye"></i></button>
         </span>
       </label>
-      <label class="field" id="pw2-wrap" hidden>
-        <span>Confirme a senha</span>
-        <input class="input" type="password" id="pw2" autocomplete="new-password">
-      </label>
       <p class="auth__error" id="auth-error" role="alert"></p>
-
-      <div class="adm-key" id="key-box" hidden>
-        <p>Chave criada. <b>Envie esta chave para o Claude</b> colocar no código. Ela não revela a senha, que nunca sai deste computador. Depois disso, entre aqui com a senha que você escolheu.</p>
-        <code id="key-out"></code>
-        <button class="btn btn--line btn--sm" type="button" id="key-copy"><i class="ph ph-copy" aria-hidden="true"></i><span class="btn__label" data-text="Copiar chave"><span>Copiar chave</span></span></button>
-      </div>
 
       <button class="btn btn--primary btn--lg auth__submit" type="submit" id="auth-submit">
         <i class="ph ph-shield-check" aria-hidden="true"></i><span class="btn__label" data-text="Entrar"><span>Entrar</span></span>
@@ -56,6 +46,7 @@
     <header class="adm__head">
       <a href="./" class="brand side__brand"><img src="../assets/logo.png" alt="" width="40" height="40"><span class="wordmark"><span class="chrome">Atual</span> <span class="red">Sucatas</span></span></a>
       <div class="adm__actions">
+        <a class="btn btn--line btn--sm" href="./"><i class="ph ph-arrow-left" aria-hidden="true"></i><span class="btn__label" data-text="Painel"><span>Painel</span></span></a>
         <span class="adm__badge"><i class="ph ph-shield-check" aria-hidden="true"></i>Administrador</span>
         <button class="btn btn--line btn--sm" type="button" id="logout"><i class="ph ph-sign-out" aria-hidden="true"></i><span class="btn__label" data-text="Sair"><span>Sair</span></span></button>
       </div>
@@ -98,9 +89,8 @@
     </main>
   </div>
 
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
   <script src="../compartilhado/orders.js?v=11"></script>
-  <script src="admin.js?v=1"></script>
+  <script src="admin-acesso.js?v=1"></script>
+  <script src="admin.js?v=2"></script>
 </body>
 </html>

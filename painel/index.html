@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
   <link rel="stylesheet" href="../site/style.css?v=12">
-  <link rel="stylesheet" href="painel.css?v=23">
+  <link rel="stylesheet" href="painel.css?v=24">
 </head>
 <body class="panel">
 
@@ -152,6 +152,14 @@
             <label class="field"><span>CNPJ</span><input class="input" type="text" id="store-cnpj" inputmode="numeric" placeholder="00.000.000/0000-00"></label>
             <button class="btn btn--line" type="submit"><span class="btn__label" data-text="Salvar dados"><span>Salvar dados</span></span></button>
           </form>
+          <form class="cfg__card" id="admin-form">
+            <h2><i class="ph ph-shield-check"></i>Área do administrador</h2>
+            <p class="cfg__hint">Só para o administrador do site: números de notas, mensagens e pedidos. A loja não precisa desta área.</p>
+            <input type="text" name="username" value="admin" autocomplete="username" hidden>
+            <label class="field"><span>Senha do administrador</span><input class="input" type="password" id="admin-pw" autocomplete="current-password" required></label>
+            <p class="auth__error cfg__error" id="admin-error" role="alert"></p>
+            <button class="btn btn--primary" type="submit" id="admin-submit"><i class="ph ph-sign-in" aria-hidden="true"></i><span class="btn__label" data-text="Entrar como administrador"><span>Entrar como administrador</span></span></button>
+          </form>
           <form class="cfg__card" id="site-form">
             <h2><i class="ph ph-link"></i>Endereço do site</h2>
             <p class="cfg__hint">Usado no link de acompanhamento que vai nas mensagens para o cliente. Troque pelo domínio quando o site for publicado.</p>
@@ -273,6 +281,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="../compartilhado/orders.js?v=11"></script>
-  <script src="painel.js?v=22"></script>
+  <script src="admin-acesso.js?v=1"></script>
+  <script src="painel.js?v=23"></script>
 </body>
 </html>
