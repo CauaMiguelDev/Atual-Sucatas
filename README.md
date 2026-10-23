@@ -27,7 +27,9 @@ O endereço principal, https://cauamigueldev.github.io/Atual-Sucatas/, abre o si
 - No topo da tela de pedidos, o guia **Como atender um pedido pelo painel** resume o processo em 4 passos.
 - Cada pedido mostra o **próximo passo** (enviar confirmação, emitir nota, enviar nota, avisar entrega) com um botão que leva direto para ele.
 - Na aba **Notas**, a nota fiscal é feita **passo a passo**: conferir o cliente, conferir peças e pagamento, gerar e conferir o PDF, enviar ao cliente.
-- A **nota do pedido** é um resumo em PDF (não fiscal) com peças, valores, pagamento, entrega e andamento, enviado junto com a confirmação.
+- A **nota do pedido** é um resumo em PDF (não fiscal) com peças, valores, pagamento, entrega e andamento, que pode ir junto com a confirmação.
+- No computador, o botão do WhatsApp só abre a conversa com a mensagem pronta: baixar o PDF é opcional. No celular, o PDF vai junto pelo compartilhamento, sem baixar nada.
+- Se o painel estiver aberto em mais de uma aba, todas mostram as mudanças na hora, sem recarregar.
 - As mensagens de WhatsApp levam o pedido completo: peças com valores, frete, total, pagamento, entrega, andamento e link de rastreio.
 - A tela **Notas fiscais** mostra quantas notas foram emitidas no mês, o valor total e quais já foram enviadas.
 

@@ -188,7 +188,7 @@ const PAYMENTS = ['Pix', 'Cartão de crédito', 'Cartão de débito', 'Dinheiro'
 /* what the store does next with an order, in the order a sale normally goes */
 function nextStep(o) {
   const sent = (t, s) => (o.msgs || []).some(m => m.tpl === t && (s === undefined || m.status === s));
-  if (!sent('criado')) return { text: 'Envie a confirmação do pedido para o cliente, com a nota do pedido em PDF.', short: 'Enviar confirmação', btn: 'Enviar confirmação', tab: 'msg', tpl: 'criado' };
+  if (!sent('criado')) return { text: 'Envie a confirmação do pedido para o cliente no WhatsApp.', short: 'Enviar confirmação', btn: 'Enviar confirmação', tab: 'msg', tpl: 'criado' };
   if (!o.nf) return { text: 'Emita a nota fiscal. O passo a passo mostra o que conferir antes.', short: 'Emitir nota fiscal', btn: 'Emitir nota', tab: 'nota' };
   if (!o.nf.enviadaEm) return { text: 'Envie o PDF da nota fiscal para o cliente no WhatsApp.', short: 'Enviar nota fiscal', btn: 'Enviar nota', tab: 'nota' };
   if (o.status < 2) return { text: 'Quando a peça sair, mude a situação para Enviado e informe a transportadora e o rastreio.', short: 'Despachar a peça', btn: 'Atualizar entrega', tab: 'entrega' };
@@ -529,6 +529,7 @@ $('#new-order').addEventListener('click', () => openDrawer(null));
 
 function commit() {
   readForm();
+  orders = loadOrders(); // start from what is saved, so another tab's changes are never overwritten
   const prev = orders.find(o => o.codigo === current.codigo);
   if (prev && prev.status !== current.status) current.historico.push({ status: current.status, data: new Date().toISOString() });
   if (prev) orders[orders.indexOf(prev)] = structuredClone(current);
@@ -570,7 +571,7 @@ function renderOrderDoc() {
   const sent = current.msgs.filter(m => m.tpl === 'criado').at(-1);
   $('#order-doc').innerHTML = `
     <span class="ico"><i class="ph-duotone ph-clipboard-text"></i></span>
-    <div><strong>Resumo da compra em PDF</strong><small>Resumo com peças, valores, pagamento e entrega para o cliente conferir a compra. Não é nota fiscal: vai junto com a confirmação do pedido.${sent ? ` Enviada em ${fmtDate(sent.data)}.` : ''}</small></div>
+    <div><strong>Resumo da compra em PDF</strong><small>Resumo com peças, valores, pagamento e entrega para o cliente conferir a compra. Não é nota fiscal: pode ir junto com a confirmação do pedido.${sent ? ` Enviada em ${fmtDate(sent.data)}.` : ''}</small></div>
     <div class="doc-card__actions">
       ${btnHtml('Ver PDF', 'ph-file-pdf', 'btn--line btn--sm', 'data-doc="ver"')}
       ${btnHtml(sent ? 'Reenviar ao cliente' : 'Enviar ao cliente', 'ph-whatsapp-logo', 'btn--whats btn--sm', 'data-doc="enviar"')}
@@ -652,18 +653,20 @@ function renderWizard() {
         <div class="wiz__actions">${back}${btnHtml('Reenviar no WhatsApp', 'ph-whatsapp-logo', 'btn--whats', 'data-wiz="enviar"')}${btnHtml('Baixar PDF', 'ph-download-simple', 'btn--line', 'data-wiz="pdf"')}</div>`
       : `${kicker}<h4>Envie a nota para o cliente</h4>
         <p class="wiz__hint">A mensagem já vai pronta, com número da nota, peças, valores e o link de rastreio.</p>
-        <ol class="wiz__how">${(IS_MOBILE
+        <ol class="wiz__how">${(CAN_ATTACH
           ? ['Toque em <b>Enviar com a nota fiscal</b>.', 'Escolha o <b>WhatsApp</b> e a conversa do cliente.', 'O PDF e a mensagem vão juntos. Confira e envie.']
-          : ['Clique em <b>Enviar com a nota fiscal</b>.', `O arquivo <b>${esc(file)}</b> é baixado e a conversa do cliente abre no WhatsApp Web com a mensagem pronta.`, 'No WhatsApp Web, clique no clipe <i class="ph ph-paperclip"></i>, escolha <b>Documento</b> e selecione o arquivo baixado.', 'Confira e envie. O painel marca a nota como enviada.']
+          : [`Clique em <b>Enviar no WhatsApp</b>. A conversa do cliente abre ${IS_MOBILE ? 'no WhatsApp' : 'no WhatsApp Web'} com a mensagem pronta.`, 'Confira e envie. O painel marca a nota como enviada.']
         ).map(t => `<li><span>${t}</span></li>`).join('')}</ol>
-        <div class="wiz__actions">${back}${btnHtml('Ver a mensagem', 'ph-chat-text', 'btn--line', 'data-wiz="msg"')}${btnHtml('Enviar com a nota fiscal', 'ph-paperclip', 'btn--whats', 'data-wiz="enviar"')}</div>`;
-    getPdf(o, 'nf').catch(() => {}); // ready before the click, so the phone share keeps the user gesture
+        ${CAN_ATTACH ? '' : `<p class="wiz__note"><i class="ph ph-paperclip"></i><span>Nada é baixado. Mandar o PDF junto é opcional: clique em <b>Baixar PDF</b> e anexe o arquivo <b>${esc(file)}</b> pelo clipe do WhatsApp.</span></p>`}
+        <div class="wiz__actions">${back}${CAN_ATTACH ? btnHtml('Enviar com a nota fiscal', 'ph-paperclip', 'btn--whats', 'data-wiz="enviar"') : btnHtml('Enviar no WhatsApp', 'ph-whatsapp-logo', 'btn--whats', 'data-wiz="enviar"')}${btnHtml('Ver a mensagem', 'ph-chat-text', 'btn--line', 'data-wiz="msg"')}${CAN_ATTACH ? '' : btnHtml('Baixar PDF', 'ph-download-simple', 'btn--line', 'data-wiz="pdf"')}</div>`;
+    if (CAN_ATTACH) getPdf(o, 'nf').catch(() => {}); // ready before the click, so the phone share keeps the user gesture
   }
   $('#nf-wiz').innerHTML = `${head}<div class="wiz__panel">${body}</div>`;
 }
 
 function issueNf() {
   const again = !!current.nf;
+  orders = loadOrders(); // next number from what is saved, also when another tab issued one
   const number = current.nf?.numero ?? Math.max(1192, ...orders.map(o => o.nf?.numero || 0)) + 1;
   current.nf = { numero: number, serie: 1, emitidaEm: new Date().toISOString(), enviadaEm: current.nf?.enviadaEm || null };
   commit();
@@ -691,7 +694,7 @@ $('#nf-wiz').addEventListener('click', async e => {
   if (a === 'ver') openPdfPreview('nf');
   if (a === 'pdf') { try { downloadFile(await getPdf(current, 'nf')); } catch { toast('Não foi possível gerar o PDF da nota.'); } }
   if (a === 'msg') { setTab('msg'); setTpl('nota'); }
-  if (a === 'enviar') await sendWithPdf('nota');
+  if (a === 'enviar') CAN_ATTACH ? await sendWithPdf('nota') : sendText('nota');
 });
 $('#nf-wiz').addEventListener('change', e => {
   if (e.target.id !== 'nf-ok') return;
@@ -836,31 +839,32 @@ function renderMsg() {
   if (!current) return;
   const noNf = tpl === 'nota' && !current.nf;
   const kind = noNf ? null : ATTACH[tpl];
-  const text = noNf ? '' : TEMPLATES[tpl](current, !!kind);
+  const attach = !!kind && CAN_ATTACH;
+  const text = noNf ? '' : TEMPLATES[tpl](current, attach);
   const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const doc = kind ? `<div class="wa__doc"><i class="ph ph-file-pdf"></i><div><b>${esc(pdfName(current, kind))}</b><span>1 página · PDF</span></div></div>` : '';
+  const doc = attach ? `<div class="wa__doc"><i class="ph ph-file-pdf"></i><div><b>${esc(pdfName(current, kind))}</b><span>1 página · PDF</span></div></div>` : '';
   $('#wa-preview').innerHTML = noNf
     ? '<span class="wa__empty">Emita a nota fiscal na aba Notas para liberar esta mensagem.</span>'
     : `${doc}${waHtml(text)}<span class="wa__time">${now} <i class="ph ph-checks"></i></span>`;
 
   const share = $('#wa-share');
-  share.hidden = $('#wa-pdf').hidden = !kind;
-  if (kind) { $('.btn__label', share).dataset.text = ATTACH_LABEL[kind]; $('.btn__label > span', share).textContent = ATTACH_LABEL[kind]; }
+  share.hidden = !attach;
+  $('#wa-pdf').hidden = !kind;
+  if (attach) { $('.btn__label', share).dataset.text = ATTACH_LABEL[kind]; $('.btn__label > span', share).textContent = ATTACH_LABEL[kind]; }
   const send = $('#wa-send');
-  const label = kind ? 'Enviar só o texto' : 'Enviar no WhatsApp';
-  send.className = kind ? 'btn btn--line' : 'btn btn--whats';
+  const label = attach ? 'Enviar só o texto' : 'Enviar no WhatsApp';
+  send.className = attach ? 'btn btn--line' : 'btn btn--whats';
   $('.btn__label', send).dataset.text = label;
   $('.btn__label > span', send).textContent = label;
   send.disabled = $('#wa-copy').disabled = noNf;
-  if (kind) getPdf(current, kind).catch(() => {}); // prepare the file before the click, so sharing keeps the user gesture
+  if (attach) getPdf(current, kind).catch(() => {}); // prepare the file before the click, so sharing keeps the user gesture
 
   const sent = current.msgs.filter(m => m.tpl === tpl).at(-1);
   $('#wa-note').innerHTML = [
-    kind
-      ? (IS_MOBILE
-        ? `<i class="ph ph-paperclip"></i> <b>${ATTACH_LABEL[kind]}</b> abre o compartilhamento do celular com o PDF e a mensagem juntos: escolha o WhatsApp e a conversa do cliente.`
-        : `<i class="ph ph-paperclip"></i> <b>${ATTACH_LABEL[kind]}</b> baixa o PDF e abre a conversa do cliente no WhatsApp Web com a mensagem pronta. Clique no clipe, escolha Documento, anexe o arquivo baixado e envie.`)
-      : `<i class="ph ph-info"></i> A conversa abre ${IS_MOBILE ? 'no WhatsApp' : 'no WhatsApp Web'} com o texto pronto. Confira e envie.`,
+    attach
+      ? `<i class="ph ph-paperclip"></i> <b>${ATTACH_LABEL[kind]}</b> abre o compartilhamento do celular com o PDF e a mensagem juntos: escolha o WhatsApp e a conversa do cliente.`
+      : `<i class="ph ph-info"></i> A conversa abre ${IS_MOBILE ? 'no WhatsApp' : 'no WhatsApp Web'} com o texto pronto. Confira e envie.`
+        + (kind ? ' Nada é baixado. Se quiser mandar o PDF junto, clique em <b>Baixar PDF</b> e anexe pelo clipe do WhatsApp.' : ''),
     sent ? `<br><i class="ph ph-check"></i> Última vez enviada em ${fmtDate(sent.data)}.` : '',
   ].join('');
 }
@@ -869,6 +873,9 @@ function renderMsg() {
    and drops line breaks when it receives text from a link or from the Windows share sheet, so desktops go to
    WhatsApp Web, which keeps the message exactly as written. */
 const IS_MOBILE = navigator.userAgentData?.mobile ?? /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+// Phones hand the PDF and the text to WhatsApp together (share sheet, nothing is downloaded). A link can't carry a
+// file, so on computers the message goes alone and downloading the PDF is optional.
+const CAN_ATTACH = IS_MOBILE && !!navigator.canShare?.({ files: [new File(['%PDF'], 'nota.pdf', { type: 'application/pdf' })] });
 function openChat(text) {
   const host = IS_MOBILE ? 'https://api.whatsapp.com/send' : 'https://web.whatsapp.com/send';
   window.open(`${host}?phone=${phoneDigits(current.cliente.whatsapp)}&text=${encodeURIComponent(text)}`, '_blank', 'noopener');
@@ -886,43 +893,32 @@ function downloadFile(file) {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
-// Phones: PDF + message together through the share sheet. Computers: download the PDF and open WhatsApp Web
-// (the Windows share sheet garbles the message text, see openChat).
+// Phones: PDF + message together through the share sheet. If sharing fails, the message goes alone.
 async function sendWithPdf(t) {
   const kind = ATTACH[t];
   if (!valid() || (kind === 'nf' && !current.nf)) return;
-  const text = TEMPLATES[t](current, true);
-  let file;
-  try { file = await getPdf(current, kind); } catch { return toast('Não foi possível gerar o PDF.'); }
-  if (IS_MOBILE && navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], text });
-      markSent(t);
-      toast('PDF e mensagem enviados para o compartilhamento.');
-      return;
-    } catch (err) {
-      if (err.name === 'AbortError') return; // share sheet closed
-    }
+  try {
+    await navigator.share({ files: [await getPdf(current, kind)], text: TEMPLATES[t](current, true) });
+    markSent(t);
+    toast('PDF e mensagem enviados para o compartilhamento.');
+  } catch (err) {
+    if (err.name !== 'AbortError') sendText(t); // AbortError: share sheet closed
   }
-  downloadFile(file);
-  try { await navigator.clipboard.writeText(text); } catch {} // backup: the message can also be pasted
-  openChat(text);
+}
+function sendText(t) {
+  if (!valid()) return;
+  openChat(TEMPLATES[t](current, false));
   markSent(t);
-  toast(`PDF baixado (${file.name}). No WhatsApp Web, clique no clipe, anexe o arquivo e envie.`);
+  toast(`${TPL_NAMES[t]}: conversa aberta ${IS_MOBILE ? 'no WhatsApp' : 'no WhatsApp Web'}.`);
 }
 $('#wa-share').addEventListener('click', () => sendWithPdf(tpl));
-$('#wa-send').addEventListener('click', () => {
-  if (!valid()) return;
-  openChat(TEMPLATES[tpl](current, false));
-  markSent(tpl);
-  toast(`${TPL_NAMES[tpl]}: conversa aberta ${IS_MOBILE ? 'no WhatsApp' : 'no WhatsApp Web'}.`);
-});
+$('#wa-send').addEventListener('click', () => sendText(tpl));
 $('#wa-pdf').addEventListener('click', async () => {
   try { downloadFile(await getPdf(current, ATTACH[tpl])); } catch { toast('Não foi possível gerar o PDF.'); }
 });
 $('#wa-copy').addEventListener('click', async () => {
   try {
-    await navigator.clipboard.writeText(TEMPLATES[tpl](current, !!ATTACH[tpl]));
+    await navigator.clipboard.writeText(TEMPLATES[tpl](current, !!ATTACH[tpl] && CAN_ATTACH));
     toast('Texto copiado. Cole na conversa do cliente.');
   } catch { toast('Não foi possível copiar. Selecione o texto da prévia.'); }
 });
@@ -1261,6 +1257,20 @@ async function openPdfPreview(kind = 'nf') {
 $('#nf-download').addEventListener('click', async () => {
   try { downloadFile(await getPdf(current, previewKind)); } catch { toast('Não foi possível gerar o PDF.'); }
 });
+
+/* Orders saved in another tab (or while this tab was in the background) show up here without reloading.
+   In an open order, only what is not typed in the form is refreshed: notes and messages sent. */
+function syncOrders() {
+  orders = loadOrders();
+  renderAll();
+  if (!drawer.open || isNew) return;
+  const fresh = orders.find(o => o.codigo === current.codigo);
+  if (!fresh) return;
+  current.nf = fresh.nf; current.msgs = fresh.msgs || []; current.historico = fresh.historico;
+  renderHead(); renderHistory(); renderNext(); renderNotes(); renderMsg();
+}
+addEventListener('storage', e => { if (e.key === ORDERS_KEY && !$('#app').hidden) syncOrders(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#app').hidden) syncOrders(); });
 
 /* dialogs: close buttons + backdrop click */
 $$('dialog').forEach(d => {
