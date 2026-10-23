@@ -11,8 +11,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@0,75..125,400..900;1,75..125,600..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
-  <link rel="stylesheet" href="../site/style.css?v=10">
-  <link rel="stylesheet" href="painel.css?v=20">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+  <link rel="stylesheet" href="../site/style.css?v=12">
+  <link rel="stylesheet" href="painel.css?v=21">
 </head>
 <body class="panel">
 
@@ -78,6 +79,16 @@
 
       <!-- PEDIDOS -->
       <section class="view" data-view-panel="pedidos">
+        <details class="guide" id="guide" open>
+          <summary><i class="ph ph-lightbulb" aria-hidden="true"></i>Como atender um pedido pelo painel<i class="ph ph-caret-down guide__caret" aria-hidden="true"></i></summary>
+          <ol class="guide__steps">
+            <li><span class="ico ico--sm"><i class="ph-duotone ph-plus-circle" aria-hidden="true"></i></span><div><strong>Cadastre o pedido</strong><small>Clique em <b>Novo pedido</b> e preencha cliente, peças, frete e forma de pagamento.</small></div></li>
+            <li><span class="ico ico--sm"><i class="ph-duotone ph-chat-circle-text" aria-hidden="true"></i></span><div><strong>Confirme no WhatsApp</strong><small>Envie a confirmação com a <b>nota do pedido</b> em PDF: peças, valores, entrega e link de rastreio.</small></div></li>
+            <li><span class="ico ico--sm"><i class="ph-duotone ph-receipt" aria-hidden="true"></i></span><div><strong>Emita e envie a nota fiscal</strong><small>Na aba <b>Notas</b>, siga os 4 passos: conferir cliente, conferir peças, gerar o PDF e enviar.</small></div></li>
+            <li><span class="ico ico--sm"><i class="ph-duotone ph-truck" aria-hidden="true"></i></span><div><strong>Atualize a entrega</strong><small>Mude a situação e informe o rastreio. A cada etapa, envie o aviso pronto para o cliente.</small></div></li>
+          </ol>
+          <p class="guide__foot"><i class="ph ph-arrow-circle-right" aria-hidden="true"></i> Dentro de cada pedido, a faixa <b>Próximo passo</b> mostra o que falta fazer com aquele cliente.</p>
+        </details>
         <div class="kpis" id="kpis"></div>
         <div class="toolbar">
           <label class="search">
@@ -93,7 +104,7 @@
         </div>
         <div class="table-wrap">
           <table class="orders">
-            <thead><tr><th>Pedido</th><th>Cliente</th><th>Peças</th><th>Total</th><th>Entrega</th><th>Nota fiscal</th><th><span class="sr-only">Abrir</span></th></tr></thead>
+            <thead><tr><th>Pedido</th><th>Cliente</th><th>Peças</th><th>Total</th><th>Entrega e próximo passo</th><th>Nota fiscal</th><th><span class="sr-only">Abrir</span></th></tr></thead>
             <tbody id="rows"></tbody>
           </table>
           <p class="empty" id="empty" hidden><i class="ph ph-package"></i>Nenhum pedido encontrado.</p>
@@ -176,9 +187,10 @@
         <button type="button" role="tab" data-tab="cliente" class="is-active"><i class="ph ph-user"></i>Cliente</button>
         <button type="button" role="tab" data-tab="pecas"><i class="ph ph-wrench"></i>Peças</button>
         <button type="button" role="tab" data-tab="entrega"><i class="ph ph-truck"></i>Entrega</button>
-        <button type="button" role="tab" data-tab="nota"><i class="ph ph-receipt"></i>Nota fiscal</button>
+        <button type="button" role="tab" data-tab="nota"><i class="ph ph-receipt"></i>Notas</button>
         <button type="button" role="tab" data-tab="msg"><i class="ph ph-whatsapp-logo"></i>Mensagens</button>
       </nav>
+      <div class="next" id="d-next" role="status"></div>
 
       <div class="drawer__body">
         <section class="tab" data-tab-panel="cliente">
@@ -198,8 +210,10 @@
           <button class="link-btn" type="button" id="add-item"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar peça</button>
           <div class="totals">
             <label class="field"><span>Frete (R$)</span><input class="input" name="frete" type="number" min="0" step="0.01"></label>
+            <label class="field totals__pay"><span>Forma de pagamento</span><select class="input select" name="pagamento" id="d-pay"></select></label>
             <div class="totals__sum"><span>Total do pedido</span><strong id="d-total">R$ 0,00</strong></div>
           </div>
+          <label class="field obs"><span>Observações</span><textarea class="input" name="obs" rows="3" placeholder="Ex.: embalar o retrovisor separado. Sai na nota do pedido e na nota fiscal."></textarea></label>
         </section>
 
         <section class="tab" data-tab-panel="entrega" hidden>
@@ -214,12 +228,15 @@
         </section>
 
         <section class="tab" data-tab-panel="nota" hidden>
-          <div id="nf-box" class="nf-box"></div>
+          <h3 class="sub sub--first">Nota fiscal, passo a passo</h3>
+          <div class="wiz" id="nf-wiz"></div>
+          <h3 class="sub">Nota do pedido</h3>
+          <div class="doc-card" id="order-doc"></div>
         </section>
 
         <section class="tab" data-tab-panel="msg" hidden>
           <div class="tpl" id="tpl" role="group" aria-label="Modelo de mensagem">
-            <button type="button" data-tpl="criado" class="is-active"><i class="ph ph-check-circle"></i>Pedido registrado</button>
+            <button type="button" data-tpl="criado" class="is-active"><i class="ph ph-check-circle"></i>Confirmação do pedido</button>
             <button type="button" data-tpl="status"><i class="ph ph-truck"></i>Atualização de entrega</button>
             <button type="button" data-tpl="nota"><i class="ph ph-receipt"></i>Nota fiscal</button>
           </div>
@@ -244,8 +261,8 @@
   </dialog>
 
   <!-- NF PREVIEW -->
-  <dialog class="nf-dialog" id="nf-dialog" aria-label="Nota fiscal em PDF">
-    <iframe class="nf-frame" id="nf-frame" title="Nota fiscal em PDF"></iframe>
+  <dialog class="nf-dialog" id="nf-dialog" aria-label="Documento em PDF">
+    <iframe class="nf-frame" id="nf-frame" title="Documento em PDF"></iframe>
     <div class="nf-actions">
       <button class="btn btn--line" type="button" data-close><span class="btn__label" data-text="Fechar"><span>Fechar</span></span></button>
       <button class="btn btn--primary" type="button" id="nf-download"><i class="ph ph-file-pdf" aria-hidden="true"></i><span class="btn__label" data-text="Baixar PDF"><span>Baixar PDF</span></span></button>
@@ -255,7 +272,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="../compartilhado/orders.js?v=10"></script>
-  <script src="painel.js?v=20"></script>
+  <script src="../compartilhado/orders.js?v=11"></script>
+  <script src="painel.js?v=21"></script>
 </body>
 </html>

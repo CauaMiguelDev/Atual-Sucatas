@@ -10,20 +10,25 @@ Peças automotivas originais usadas, com garantia e nota fiscal, e envio para to
 | **Site da loja** | https://cauamigueldev.github.io/Atual-Sucatas/site/ |
 | **Painel da loja** | https://cauamigueldev.github.io/Atual-Sucatas/painel/ |
 | **Nota fiscal de exemplo (PDF)** | https://cauamigueldev.github.io/Atual-Sucatas/exemplos/nota-fiscal-exemplo-Pablo.pdf |
+| **Nota do pedido de exemplo (PDF)** | https://cauamigueldev.github.io/Atual-Sucatas/exemplos/nota-do-pedido-exemplo-Pablo.pdf |
 
 O endereço principal, https://cauamigueldev.github.io/Atual-Sucatas/, abre o site direto.
 
 ## Como testar
 
 **Site**
-- Navegue pelas seções: procedência, peças, pátio, como comprar, dúvidas e contato.
+- Navegue pelas seções: procedência, peças, pátio, envio para todo o Brasil, como comprar, dúvidas e contato.
 - Os botões de orçamento abrem o WhatsApp da loja com a mensagem pronta.
 - Clique em **Rastrear pedido** (no menu) e digite `AS-1024` ou `QB123456789BR` para ver o acompanhamento de um pedido de exemplo.
 
 **Painel**
 - No primeiro acesso, o painel pede para **criar um usuário e uma senha**. Depois disso, é só entrar com eles.
 - Já vêm 4 pedidos de exemplo (AS-1021 a AS-1024) para testar.
-- Em cada pedido dá para editar cliente, peças, entrega e rastreio, gerar a nota fiscal em PDF e enviar mensagens prontas no WhatsApp do cliente.
+- No topo da tela de pedidos, o guia **Como atender um pedido pelo painel** resume o processo em 4 passos.
+- Cada pedido mostra o **próximo passo** (enviar confirmação, emitir nota, enviar nota, avisar entrega) com um botão que leva direto para ele.
+- Na aba **Notas**, a nota fiscal é feita **passo a passo**: conferir o cliente, conferir peças e pagamento, gerar e conferir o PDF, enviar ao cliente.
+- A **nota do pedido** é um resumo em PDF (não fiscal) com peças, valores, pagamento, entrega e andamento, enviado junto com a confirmação.
+- As mensagens de WhatsApp levam o pedido completo: peças com valores, frete, total, pagamento, entrega, andamento e link de rastreio.
 - A tela **Notas fiscais** mostra quantas notas foram emitidas no mês, o valor total e quais já foram enviadas.
 
 > Os pedidos de exemplo usam o WhatsApp da própria loja como número do cliente. Assim, nos testes, as mensagens chegam para a loja e não para outra pessoa.
@@ -35,7 +40,7 @@ site/            site da loja (página pública)
 painel/          painel da loja (pedidos, notas fiscais, mensagens)
 compartilhado/   dados dos pedidos, usados pelo site (rastreio) e pelo painel
 assets/          logo e fotos do pátio
-exemplos/        nota fiscal de exemplo em PDF
+exemplos/        nota fiscal e nota do pedido de exemplo em PDF
 index.html       abre o site
 ```
 
@@ -45,7 +50,7 @@ O painel usa o mesmo estilo visual do site (`site/style.css`) e tem os próprios
 
 Já funciona:
 - Site completo, adaptado para computador e celular.
-- Painel com login, pedidos, entregas, notas fiscais e mensagens de WhatsApp.
+- Painel com login, pedidos, entregas, nota do pedido, nota fiscal passo a passo e mensagens de WhatsApp.
 - Rastreio do pedido no site, por código do pedido ou código de rastreio.
 - Nota fiscal em PDF no layout DANFE, com os dados e o CNPJ da loja.
 
