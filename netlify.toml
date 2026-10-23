@@ -1,0 +1,18 @@
+# Atual Sucatas — site estático (HTML/CSS/JS), sem etapa de build.
+# O Netlify publica a raiz do repositório, igual ao GitHub Pages.
+[build]
+  command = ""
+  publish = "."
+
+# A raiz abre o site da loja (no GitHub Pages o index.html da raiz faz o mesmo).
+[[redirects]]
+  from = "/"
+  to = "/site/"
+  status = 302
+  force = true
+
+# Painel e área do administrador ficam fora dos buscadores.
+[[headers]]
+  for = "/painel/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
