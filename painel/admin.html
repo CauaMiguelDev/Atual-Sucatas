@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administração | Atual Sucatas</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0c0c0e">
+  <link rel="icon" href="../assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@0,75..125,400..900;1,75..125,600..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+  <link rel="stylesheet" href="../site/style.css?v=12">
+  <link rel="stylesheet" href="painel.css?v=23">
+</head>
+<body class="panel">
+
+  <!-- ===== LOGIN (only the site's administrator) ===== -->
+  <section class="auth" id="auth">
+    <form class="auth__card" id="auth-form" autocomplete="on">
+      <img src="../assets/logo.png" alt="" width="84" height="84" class="auth__logo">
+      <p class="wordmark"><span class="chrome">Atual</span> <span class="red">Sucatas</span></p>
+      <h1 class="auth__title" id="auth-title">Área do administrador</h1>
+      <p class="auth__hint" id="auth-hint">Acesso restrito ao administrador do site.</p>
+
+      <input type="text" name="username" value="administrador" autocomplete="username" hidden>
+      <label class="field">
+        <span>Senha do administrador</span>
+        <span class="field__pw">
+          <input class="input" type="password" id="pw" autocomplete="current-password" required>
+          <button type="button" class="field__eye" data-eye="pw" aria-label="Mostrar senha"><i class="ph ph-eye"></i></button>
+        </span>
+      </label>
+      <label class="field" id="pw2-wrap" hidden>
+        <span>Confirme a senha</span>
+        <input class="input" type="password" id="pw2" autocomplete="new-password">
+      </label>
+      <p class="auth__error" id="auth-error" role="alert"></p>
+
+      <div class="adm-key" id="key-box" hidden>
+        <p>Chave criada. <b>Envie esta chave para o Claude</b> colocar no código. Ela não revela a senha, que nunca sai deste computador. Depois disso, entre aqui com a senha que você escolheu.</p>
+        <code id="key-out"></code>
+        <button class="btn btn--line btn--sm" type="button" id="key-copy"><i class="ph ph-copy" aria-hidden="true"></i><span class="btn__label" data-text="Copiar chave"><span>Copiar chave</span></span></button>
+      </div>
+
+      <button class="btn btn--primary btn--lg auth__submit" type="submit" id="auth-submit">
+        <i class="ph ph-shield-check" aria-hidden="true"></i><span class="btn__label" data-text="Entrar"><span>Entrar</span></span>
+      </button>
+      <a class="auth__back" href="./"><i class="ph ph-arrow-left" aria-hidden="true"></i> Voltar para o painel</a>
+    </form>
+  </section>
+
+  <!-- ===== ADMIN ===== -->
+  <div class="adm" id="app" hidden>
+    <header class="adm__head">
+      <a href="./" class="brand side__brand"><img src="../assets/logo.png" alt="" width="40" height="40"><span class="wordmark"><span class="chrome">Atual</span> <span class="red">Sucatas</span></span></a>
+      <div class="adm__actions">
+        <span class="adm__badge"><i class="ph ph-shield-check" aria-hidden="true"></i>Administrador</span>
+        <button class="btn btn--line btn--sm" type="button" id="logout"><i class="ph ph-sign-out" aria-hidden="true"></i><span class="btn__label" data-text="Sair"><span>Sair</span></span></button>
+      </div>
+    </header>
+
+    <main class="main adm__main">
+      <header class="main__head">
+        <div>
+          <h1>Administração</h1>
+          <p>Números do painel da loja. Só o administrador do site entra aqui.</p>
+        </div>
+      </header>
+      <p class="adm__scope"><i class="ph ph-info" aria-hidden="true"></i><span>Os números vêm dos pedidos salvos <b>neste navegador</b>. Para ver os da loja, abra esta página no computador onde o dono usa o painel. Com o servidor, esta área passa a mostrar os dados da loja de qualquer lugar. Atualizado às <b id="updated"></b>.</span></p>
+
+      <h2 class="adm__h">Notas fiscais</h2>
+      <div class="kpis" id="k-nf"></div>
+
+      <h2 class="adm__h">Mensagens enviadas no WhatsApp</h2>
+      <div class="kpis" id="k-msg"></div>
+
+      <h2 class="adm__h">Pedidos</h2>
+      <div class="kpis" id="k-ped"></div>
+
+      <h2 class="adm__h">Mês a mês</h2>
+      <div class="table-wrap">
+        <table class="orders adm__table">
+          <thead><tr><th>Mês</th><th>Notas geradas</th><th>Notas enviadas</th><th>Pedidos</th><th>Valor dos pedidos</th></tr></thead>
+          <tbody id="months"></tbody>
+        </table>
+      </div>
+
+      <h2 class="adm__h">Últimas notas fiscais</h2>
+      <div class="table-wrap">
+        <table class="orders adm__table">
+          <thead><tr><th>Nota</th><th>Pedido</th><th>Cliente</th><th>Gerada em</th><th>Envio ao cliente</th><th>Valor</th></tr></thead>
+          <tbody id="recent"></tbody>
+        </table>
+        <p class="empty" id="recent-empty" hidden><i class="ph ph-receipt"></i>Nenhuma nota gerada ainda.</p>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="../compartilhado/orders.js?v=11"></script>
+  <script src="admin.js?v=1"></script>
+</body>
+</html>

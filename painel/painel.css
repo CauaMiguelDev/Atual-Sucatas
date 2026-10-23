@@ -438,3 +438,34 @@ tr:hover .o-open { background: var(--red); border-color: var(--red); }
   .check b { grid-column: 2; }
   .totals .totals__pay { width: 100%; }
 }
+
+/* ---------- admin area (painel/admin.html) ---------- */
+.adm[hidden], .adm-key[hidden] { display: none !important; }
+.adm__head { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem clamp(1.2rem, 3vw, 2.6rem); background: rgba(8, 8, 10, .92); border-bottom: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.adm__head .side__brand { padding: 0; }
+.adm__actions { display: flex; align-items: center; gap: .6rem; }
+.adm__badge { display: inline-flex; align-items: center; gap: .4rem; height: 34px; padding: 0 .85rem; border-radius: 999px; background: rgba(225, 38, 45, .12); border: 1px solid rgba(225, 38, 45, .4); color: #ffb3b5; font-size: .84rem; font-weight: 700; white-space: nowrap; }
+.adm__badge i { font-size: 1.05rem; }
+.adm__main { max-width: 1240px; margin: 0 auto; }
+.adm__scope { display: flex; gap: .6rem; padding: .9rem 1rem; border-radius: 12px; border: 1px dashed var(--line-2); color: var(--muted); font-size: .9rem; line-height: 1.5; }
+.adm__scope i { flex-shrink: 0; margin-top: .15rem; color: var(--red-text); font-size: 1.15rem; }
+.adm__scope b { color: var(--text); }
+.adm__h { margin: 2.2rem 0 .8rem; font: italic 900 1.15rem/1 var(--display); text-transform: uppercase; color: var(--muted); }
+.kpi small { display: block; margin-top: .45rem; color: var(--muted); font-size: .82rem; }
+.kpi--red small { color: rgba(255, 255, 255, .82); }
+.adm__table { min-width: 640px; }
+.adm__table tbody tr { cursor: default; }
+.adm__table tbody tr:hover { background: none; }
+.adm-key { display: grid; gap: .7rem; margin-top: .4rem; text-align: left; }
+.adm-key p { color: var(--muted); font-size: .9rem; line-height: 1.5; }
+.adm-key p b { color: var(--text); }
+.adm-key code { display: block; padding: .85rem; border-radius: 10px; background: var(--black); border: 1px dashed rgba(225, 38, 45, .6); color: #fff; font: 600 .78rem/1.55 ui-monospace, "Cascadia Mono", Consolas, monospace; word-break: break-all; user-select: all; }
+.adm-key .btn { justify-self: start; }
+@media (max-width: 700px) {
+  .adm__table { min-width: 0; }
+  .adm__table tr { padding-right: 1.1rem; }
+  .adm__table td:last-child { position: static; margin-top: .3rem; }
+}
+@media (max-width: 560px) {
+  .adm__head .wordmark { display: none; }
+}
