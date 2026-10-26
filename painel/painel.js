@@ -446,6 +446,54 @@ $('#items').addEventListener('click', e => {
   renderItems(); updateTotal();
 });
 form.addEventListener('input', () => { updateTotal(); renderTrackChip(); renderNext(); });
+
+/* customer form: title-case the name, mask CPF/CNPJ, fill the address from the CEP (ViaCEP) */
+const NAME_LOWER = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'di', 'du']);
+const titleName = s => s.replace(/\S+/g, (w, i) => {
+  const lw = w.toLowerCase();
+  return i && NAME_LOWER.has(lw) ? lw : lw.charAt(0).toUpperCase() + lw.slice(1);
+});
+form.nome.addEventListener('input', e => {
+  const { selectionStart: a, selectionEnd: b } = e.target;
+  e.target.value = titleName(e.target.value); // same length, caret stays valid
+  e.target.setSelectionRange(a, b);
+});
+
+function maskDoc(v) {
+  const d = v.replace(/\D/g, '').slice(0, 14);
+  if (d.length <= 11) {
+    if (d.length > 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+    if (d.length > 6) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+    if (d.length > 3) return `${d.slice(0, 3)}.${d.slice(3)}`;
+    return d;
+  }
+  const out = `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}`;
+  return d.length > 12 ? `${out}-${d.slice(12)}` : out;
+}
+form.doc.addEventListener('input', e => { e.target.value = maskDoc(e.target.value); });
+
+const maskCep = v => { const d = v.replace(/\D/g, '').slice(0, 8); return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d; };
+let lastCep = '';
+async function lookupCep() {
+  const d = form.cep.value.replace(/\D/g, '');
+  if (d.length !== 8 || d === lastCep) return;
+  lastCep = d;
+  try {
+    const j = await (await fetch(`https://viacep.com.br/ws/${d}/json/`)).json();
+    if (j.erro) { toast('CEP não encontrado. Confira o número.'); return; }
+    if (j.logradouro && !form.endereco.value.trim()) form.endereco.value = j.logradouro;
+    if (j.bairro && !form.bairro.value.trim()) form.bairro.value = j.bairro;
+    if (j.localidade && j.uf) form.cidade.value = `${j.localidade} - ${j.uf}`;
+    renderTrackChip(); renderNext();
+    toast(j.logradouro ? 'Endereço preenchido pelo CEP. Falta o número.' : 'Cidade preenchida pelo CEP.');
+    if (form.endereco.value.trim() && !/\d/.test(form.endereco.value)) {
+      form.endereco.focus();
+      form.endereco.setSelectionRange(form.endereco.value.length, form.endereco.value.length);
+    }
+  } catch { toast('Não foi possível consultar o CEP agora. Preencha o endereço na mão.'); }
+}
+form.cep.addEventListener('input', e => { e.target.value = maskCep(e.target.value); lookupCep(); });
+form.cep.addEventListener('blur', lookupCep);
 function updateTotal() { readForm(); $('#d-total').textContent = brl(orderTotal(current)); }
 
 function fillForm() {
@@ -971,8 +1019,8 @@ function getPdf(o, kind = 'nf') {
 }
 
 /* DANFE-style layout following the owner's model (A4 in points, same grid as the model).
-   Fiscal-only data (chave de acesso, protocolo, ICMS) is never invented: those fields say they come from the
-   official emitter, and the page carries a "sem valor fiscal" watermark until the NF-e integration exists. */
+   Fiscal-only data (chave de acesso, protocolo, ICMS) is never invented. The page stays clearly marked
+   as a preview without fiscal value until the NF-e integration exists. */
 async function buildNfPdf(o) {
   if (!window.jspdf) throw new Error('jsPDF indisponível');
   const doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4' });
@@ -986,7 +1034,7 @@ async function buildNfPdf(o) {
   const saida = o.historico?.find(h => h.status === 2)?.data;
   const [municipio, uf] = (() => { const m = String(o.cliente.cidade || '').split(/\s*[-/]\s*/); return [m[0] || '', m.length > 1 ? m.at(-1) : ''] })();
 
-  doc.setProperties({ title: `Nota fiscal ${o.nf.numero} - ${o.codigo}`, author: 'Atual Comércio de Sucatas' });
+  doc.setProperties({ title: `Nota fiscal ${o.nf.numero} - ${o.codigo}`, author: 'ATUAL COMÉRCIO DE SUCATAS LTDA' });
   doc.setLineWidth(0.6);
 
   const font = (size, bold = false, color = ink) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor(...color); };
@@ -1008,7 +1056,7 @@ async function buildNfPdf(o) {
 
   /* canhoto (receipt stub) */
   box(L, 25, 465, 55);
-  font(5.8); doc.text('RECEBEMOS DE ATUAL COMÉRCIO DE SUCATAS OS PRODUTOS/SERVIÇOS CONSTANTES NA NOTA FISCAL INDICADA AO LADO', L + 4, 37);
+  font(5.8); doc.text('RECEBEMOS DE ATUAL COMÉRCIO DE SUCATAS LTDA OS PRODUTOS/SERVIÇOS CONSTANTES NA NOTA FISCAL INDICADA AO LADO', L + 4, 37);
   doc.setDrawColor(...line); doc.line(L, 45, 490, 45); doc.line(145, 45, 145, 80);
   font(5.2, false, gray); doc.text('DATA DE RECEBIMENTO', L + 4, 53); doc.text('IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR', 149, 53);
   box(490, 25, 80, 55);
@@ -1016,37 +1064,28 @@ async function buildNfPdf(o) {
   font(7.5); doc.text(nfNum, 497, 54); doc.text(`SÉRIE: ${o.nf.serie}`, 497, 66);
   doc.setLineDashPattern([3, 2], 0); doc.line(L, 85, R, 85); doc.setLineDashPattern([], 0);
 
-  /* header: our store block | DANFE | chave/protocolo */
+  /* header: our store block | DANFE */
   const top = 90, hh = 95;
-  box(L, top, 180, hh);
+  box(L, top, 413, hh);
   const logo = await logoDataUrl();
   if (logo) doc.addImage(logo, 'PNG', L + 8, top + 10, 40, 40, 'logo', 'FAST');
   const tx = logo ? L + 54 : L + 8;
-  font(8.4, true); doc.text('Atual Comércio de Sucatas', tx, top + 20);
+  font(8.4, true); doc.text('ATUAL COMÉRCIO DE SUCATAS LTDA', tx, top + 20);
   font(6.6, false, [60, 60, 64]);
-  doc.text(['R. Horaide Prestes de Souza, 65', 'Vila Real, Chapecó - SC', '89805-807', '(49) 9 9104-1665'], tx, top + 30, { lineHeightFactor: 1.35 });
+  doc.text(['Rua Horaide Prestes de Souza, 65, Letra D, Apt 606, Bloco H', 'Vila Real, Chapecó - SC', 'CEP 89805-807', '(49) 9 9104-1665'], tx, top + 30, { lineHeightFactor: 1.35 });
   if (storeCnpj()) { font(6.8, true); doc.text(`CNPJ: ${storeCnpj()}`, L + 8, top + hh - 10); }
 
-  box(205, top, 132, hh);
-  font(13, true); doc.text('DANFE', 271, top + 16, { align: 'center' });
-  font(5.8); doc.text(['DOCUMENTO AUXILIAR', 'DA NOTA FISCAL', 'ELETRÔNICA'], 271, top + 26, { align: 'center', lineHeightFactor: 1.3 });
-  doc.line(205, top + 52, 337, top + 52); doc.line(205, top + 78, 337, top + 78);
-  font(6.4); doc.text(['0 - Entrada', '1 - Saída'], 213, top + 62, { lineHeightFactor: 1.5 });
-  box(290, top + 56, 22, 19); font(12, true); doc.text('1', 301, top + 70, { align: 'center' });
-  font(7.5, true); doc.text(nfNum, 271, top + 89, { align: 'center' });
-
-  box(337, top, 233, hh);
-  font(5.2, false, gray); doc.text('CHAVE DE ACESSO', 343, top + 8);
-  box(343, top + 13, 221, 28);
-  font(6.4, false, gray); doc.text('Gerada pelo emissor fiscal na emissão da NF-e', 453, top + 29.5, { align: 'center' });
-  font(5.2, false, gray); doc.text(['Consulta de autenticidade disponível após a autorização', 'da NF-e em www.nfe.fazenda.gov.br/portal'], 343, top + 51, { lineHeightFactor: 1.35 });
-  doc.line(337, top + 66, R, top + 66);
-  font(5.2, false, gray); doc.text('PROTOCOLO DE AUTORIZAÇÃO DE USO', 343, top + 74);
-  font(7, true, gray); doc.text('Aguardando autorização da SEFAZ', 343, top + 87);
+  box(438, top, 132, hh);
+  font(13, true); doc.text('DANFE', 504, top + 16, { align: 'center' });
+  font(5.8); doc.text(['DOCUMENTO AUXILIAR', 'DA NOTA FISCAL', 'ELETRÔNICA'], 504, top + 26, { align: 'center', lineHeightFactor: 1.3 });
+  doc.line(438, top + 52, R, top + 52); doc.line(438, top + 78, R, top + 78);
+  font(6.4); doc.text(['0 - Entrada', '1 - Saída'], 446, top + 62, { lineHeightFactor: 1.5 });
+  box(523, top + 56, 22, 19); font(12, true); doc.text('1', 534, top + 70, { align: 'center' });
+  font(7.5, true); doc.text(nfNum, 504, top + 89, { align: 'center' });
 
   /* natureza */
   let y = top + hh + 3;
-  cell(L, y, 450, 24, 'Natureza da operação', 'VENDA DE MERCADORIA', { bold: true });
+  cell(L, y, 450, 24, 'Natureza da operação', 'VENDA', { bold: true });
   cell(475, y, 95, 24, 'Data da emissão', dateBR(emit));
   y += 28;
 
@@ -1130,12 +1169,14 @@ async function buildNfPdf(o) {
   y += 4; font(7.4, false, [60, 60, 64]);
   doc.text(doc.splitTextToSize('Peças usadas originais, provenientes de veículo desmontado por empresa credenciada no DETRAN-SC, conforme a Lei 12.977/2014. Garantia da loja em todas as peças.', W - 8), L + 4, y, { lineHeightFactor: 1.35 });
   font(6.4, false, gray);
-  doc.text(doc.splitTextToSize('Documento gerado pelo painel da Atual Sucatas, sem valor fiscal. A NF-e oficial, com chave de acesso e protocolo de autorização, é emitida pelo emissor fiscal da loja.', W - 8), L + 4, addBottom - 14);
+  doc.text(doc.splitTextToSize('A nota fiscal oficial (NF-e), com chave de acesso e protocolo de autorização da SEFAZ, é emitida pelo sistema fiscal da loja. Este documento é apenas uma prévia.', W - 8), L + 4, addBottom - 28, { lineHeightFactor: 1.3 });
+  font(8, true, red);
+  doc.text('PRÉVIA - SEM VALOR FISCAL', L + 4, addBottom - 9);
 
   /* watermark */
   doc.saveGraphicsState();
-  doc.setGState(new doc.GState({ opacity: 0.1 }));
-  font(46, true, red);
+  doc.setGState(new doc.GState({ opacity: 0.08 }));
+  font(34, true, red);
   doc.text('SEM VALOR FISCAL', 297, 520, { align: 'center', angle: 32 });
   doc.restoreGraphicsState();
 
