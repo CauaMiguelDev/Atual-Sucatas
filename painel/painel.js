@@ -819,17 +819,6 @@ const valueLines = o => [
   `*Total: ${brl(orderTotal(o))}*`,
   o.pagamento ? `${E.card} Pagamento: ${o.pagamento}` : null,
 ];
-const deliveryLines = o => {
-  if (isPickup(o)) return [`${E.store} *Retirada na loja*`, 'R. Horaide Prestes de Souza, 65 - Vila Real, Chapecó - SC', 'Seg a sex, 8h às 18h | Sáb, 8h às 12h'];
-  const c = o.cliente, t = o.rastreio || {};
-  return [
-    `${E.truck} *Entrega*`,
-    t.transportadora ? `Envio por: ${t.transportadora}` : null,
-    c.endereco ? `${c.endereco}${c.bairro ? ` - ${c.bairro}` : ''}` : null,
-    `${c.cidade}${c.cep ? `, CEP ${c.cep}` : ''}`,
-    o.previsao && o.status < LAST ? `Previsão de entrega: *${fmtDay(o.previsao)}*` : null,
-  ];
-};
 // order progress as a checklist: done, now, still to come
 const progressLines = o => ORDER_STATUS.map((s, i) =>
   i < o.status || (i === o.status && i === LAST) ? `${E.ok} ${s}` : i === o.status ? `${E.point} *${s}*` : `${E.wait} ${s}`);
@@ -844,26 +833,19 @@ const STATUS_LINE = [
 // attach = the message goes out together with the PDF
 const TEMPLATES = {
   criado: (o, kind) => tidy([
-    `Olá, *${firstName(o.cliente.nome)}*! Seu pedido na *Atual Sucatas* está confirmado ${E.ok}`,
+    `Olá, *${(o.cliente.nome || '').toUpperCase()}*! Seu pedido foi criado com sucesso ${E.ok}`,
     '',
-    `${E.box} *Pedido ${o.codigo}*`,
-    `${E.cal} Feito em ${new Date(o.data).toLocaleDateString('pt-BR')}`,
+    `${E.box} Código de rastreio: *${o.rastreio?.codigo || o.codigo}*`,
+    `${E.memo} Situação: ${ORDER_STATUS[o.status]}`,
+    isPickup(o) ? `${E.store} Retirada na loja, em Chapecó - SC` : `${E.pin} Destino: ${o.cliente.cidade}`,
+    o.previsao ? `${E.cal} Previsão de entrega: ${fmtDay(o.previsao)}` : null,
+    kind === 'nf' ? `${E.receipt} Nota fiscal nº *${o.nf.numero}* em anexo.`
+      : kind === 'pedido' ? `${E.clip} Resumo do pedido em anexo (PDF).` : null,
     '',
-    `${E.wrench} *Peças*`,
-    ...itemLines(o),
-    '',
-    ...valueLines(o),
-    '',
-    ...deliveryLines(o),
-    '',
-    `${E.link} *Acompanhe o pedido em tempo real:*`,
+    `${E.link} *Acompanhe seu pedido em tempo real:*`,
     trackLink(o),
-    kind ? '' : null,
-    kind === 'nf' ? `${E.clip} Em anexo, a *nota fiscal* do seu pedido em PDF. Guarde este arquivo.`
-      : kind === 'pedido' ? `${E.clip} Em anexo, a *nota do pedido* em PDF com todos os detalhes.` : null,
     '',
-    `${E.shield} Peças originais, com garantia e nota fiscal.${o.nf ? '' : ' A nota fiscal chega por aqui assim que for emitida.'}`,
-    `${E.chat} Qualquer dúvida, é só responder esta mensagem.`,
+    'Você receberá novas atualizações por aqui.',
     '',
     SIGN,
   ]),
