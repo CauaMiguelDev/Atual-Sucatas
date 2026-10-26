@@ -914,33 +914,34 @@ function renderMsg() {
   if (!current) return;
   const noNf = tpl === 'nota' && !current.nf;
   const fileKind = noNf ? null : attachKind(tpl); // which PDF belongs to this message (nf or pedido)
-  const attach = CAN_ATTACH && !!fileKind;        // on a phone the share sheet carries it; on a computer it is an optional download
-  const text = noNf ? '' : TEMPLATES[tpl](current, attach ? fileKind : null);
+  const canShare = CAN_ATTACH && !!fileKind;      // phone: the share sheet sends the file + text together
+  const text = noNf ? '' : TEMPLATES[tpl](current, fileKind); // text references the PDF whenever there is one
   const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const doc = attach ? `<div class="wa__doc"><i class="ph ph-file-pdf"></i><div><b>${esc(pdfName(current, fileKind))}</b><span>1 página · PDF</span></div></div>` : '';
+  const doc = fileKind ? `<div class="wa__doc"><i class="ph ph-file-pdf"></i><div><b>${esc(pdfName(current, fileKind))}</b><span>1 página · PDF</span></div></div>` : '';
   $('#wa-preview').innerHTML = noNf
     ? '<span class="wa__empty">Emita a nota fiscal na aba Notas para liberar esta mensagem.</span>'
     : `${doc}${waHtml(text)}<span class="wa__time">${now} <i class="ph ph-checks"></i></span>`;
 
+  const pdfLabel = fileKind === 'nf' ? 'a nota fiscal' : 'a nota do pedido';
   const share = $('#wa-share');
-  share.hidden = !attach;
+  share.hidden = !canShare;
   $('#wa-pdf').hidden = !fileKind;
-  if (attach) { $('.btn__label', share).dataset.text = ATTACH_LABEL[fileKind]; $('.btn__label > span', share).textContent = ATTACH_LABEL[fileKind]; }
+  if (canShare) { $('.btn__label', share).dataset.text = ATTACH_LABEL[fileKind]; $('.btn__label > span', share).textContent = ATTACH_LABEL[fileKind]; }
   const send = $('#wa-send');
-  const label = attach ? 'Enviar só o texto' : 'Enviar no WhatsApp';
-  send.className = attach ? 'btn btn--line' : 'btn btn--whats';
+  const label = canShare ? 'Enviar só o texto' : fileKind ? 'Enviar com o PDF' : 'Enviar no WhatsApp';
+  send.className = canShare ? 'btn btn--line' : 'btn btn--whats';
   $('.btn__label', send).dataset.text = label;
   $('.btn__label > span', send).textContent = label;
   send.disabled = $('#wa-copy').disabled = noNf;
-  if (attach) getPdf(current, fileKind).catch(() => {}); // prepare the file before the click, so sharing keeps the user gesture
+  if (fileKind) getPdf(current, fileKind).catch(() => {}); // prepare the file before the click
 
-  const pdfLabel = fileKind === 'nf' ? 'a nota fiscal' : 'a nota do pedido';
   const sent = current.msgs.filter(m => m.tpl === tpl).at(-1);
   $('#wa-note').innerHTML = [
-    attach
+    canShare
       ? `<i class="ph ph-paperclip"></i> <b>${ATTACH_LABEL[fileKind]}</b> abre o compartilhamento do celular com o PDF e a mensagem juntos: escolha o WhatsApp e a conversa do cliente.`
-      : `<i class="ph ph-info"></i> A conversa abre ${IS_MOBILE ? 'no WhatsApp' : 'no WhatsApp Web'} com o texto pronto. Confira e envie.`
-        + (fileKind ? ` Nada é baixado. Para mandar ${pdfLabel} junto, clique em <b>Baixar PDF</b> e anexe pelo clipe do WhatsApp.` : ''),
+      : fileKind
+        ? `<i class="ph ph-paperclip"></i> Ao clicar em <b>${label}</b>, ${pdfLabel} é baixada e a conversa abre ${IS_MOBILE ? 'no WhatsApp' : 'no WhatsApp Web'}. Anexe o arquivo na conversa (clipe ou arraste) e envie — o WhatsApp Web não deixa o site anexar sozinho.`
+        : `<i class="ph ph-info"></i> A conversa abre ${IS_MOBILE ? 'no WhatsApp' : 'no WhatsApp Web'} com o texto pronto. Confira e envie.`,
     sent ? `<br><i class="ph ph-check"></i> Última vez enviada em ${fmtDate(sent.data)}.` : '',
   ].join('');
 }
@@ -981,14 +982,25 @@ async function sendWithPdf(t) {
     if (err.name !== 'AbortError') sendText(t); // AbortError: share sheet closed
   }
 }
-function sendText(t) {
+function sendText(t) { // text only (mobile "só o texto")
   if (!valid()) return;
   openChat(TEMPLATES[t](current, null));
   markSent(t);
   toast(`${TPL_NAMES[t]}: conversa aberta ${IS_MOBILE ? 'no WhatsApp' : 'no WhatsApp Web'}.`);
 }
+// web/desktop: download the PDF (so it can be attached) and open the chat with the text
+async function sendWithDownload(t) {
+  if (!valid()) return;
+  const kind = attachKind(t);
+  if (kind) { try { downloadFile(await getPdf(current, kind)); } catch { return toast('Não foi possível gerar o PDF.'); } }
+  openChat(TEMPLATES[t](current, kind));
+  markSent(t);
+  toast(kind
+    ? `${kind === 'nf' ? 'Nota fiscal' : 'Nota do pedido'} baixada. Anexe o arquivo na conversa que abriu e envie.`
+    : `${TPL_NAMES[t]}: conversa aberta no WhatsApp Web.`);
+}
 $('#wa-share').addEventListener('click', () => sendWithPdf(tpl));
-$('#wa-send').addEventListener('click', () => sendText(tpl));
+$('#wa-send').addEventListener('click', () => (CAN_ATTACH && attachKind(tpl)) ? sendText(tpl) : sendWithDownload(tpl));
 $('#wa-pdf').addEventListener('click', async () => {
   const kind = attachKind(tpl);
   if (!kind) return;
@@ -996,7 +1008,7 @@ $('#wa-pdf').addEventListener('click', async () => {
 });
 $('#wa-copy').addEventListener('click', async () => {
   try {
-    await navigator.clipboard.writeText(TEMPLATES[tpl](current, CAN_ATTACH ? attachKind(tpl) : null));
+    await navigator.clipboard.writeText(TEMPLATES[tpl](current, attachKind(tpl)));
     toast('Texto copiado. Cole na conversa do cliente.');
   } catch { toast('Não foi possível copiar. Selecione o texto da prévia.'); }
 });
