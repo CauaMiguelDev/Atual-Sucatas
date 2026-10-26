@@ -167,6 +167,11 @@
             <button class="btn btn--line" type="submit"><span class="btn__label" data-text="Salvar endereço"><span>Salvar endereço</span></span></button>
           </form>
           <div class="cfg__card">
+            <h2><i class="ph ph-receipt"></i>Notas fiscais</h2>
+            <p class="cfg__hint">Remove a nota fiscal de todos os pedidos. Os pedidos continuam e voltam para "a emitir". Não dá para desfazer.</p>
+            <button class="btn btn--line" type="button" id="clear-nf"><i class="ph ph-trash" aria-hidden="true"></i><span class="btn__label" data-text="Apagar todas as notas"><span>Apagar todas as notas</span></span></button>
+          </div>
+          <div class="cfg__card">
             <h2><i class="ph ph-database"></i>Dados de exemplo</h2>
             <p class="cfg__hint">Apaga as alterações feitas neste navegador e volta aos três pedidos de demonstração.</p>
             <button class="btn btn--line" type="button" id="reset-demo"><span class="btn__label" data-text="Restaurar exemplos"><span>Restaurar exemplos</span></span></button>
@@ -282,6 +287,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="../compartilhado/orders.js?v=11"></script>
   <script src="admin-acesso.js?v=1"></script>
-  <script src="painel.js?v=26"></script>
+  <script src="painel.js?v=28"></script>
 </body>
 </html>

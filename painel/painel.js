@@ -404,6 +404,21 @@ $('#reset-demo').addEventListener('click', () => {
   renderAll();
   toast('Pedidos de exemplo restaurados.');
 });
+/* remove the invoice from every order (keeps the orders); also drops the "nota enviada" messages so the counts zero out */
+$('#clear-nf').addEventListener('click', () => {
+  orders = loadOrders();
+  const n = orders.filter(o => o.nf).length;
+  if (!n) return toast('Não há notas para apagar.');
+  if (!confirm(`Apagar as ${n} nota(s) fiscal(is) de todos os pedidos? Os pedidos continuam e voltam para "a emitir". Isso não pode ser desfeito.`)) return;
+  orders.forEach(o => { o.nf = null; o.msgs = (o.msgs || []).filter(m => m.tpl !== 'nota'); });
+  saveOrders(orders);
+  if (drawer.open && current && !isNew) {
+    const f = orders.find(o => o.codigo === current.codigo);
+    if (f) { current.nf = null; current.msgs = f.msgs; nfStep = 0; nfChecked = false; renderHead(); renderNext(); renderNotes(); renderMsg(); }
+  }
+  renderAll();
+  toast(`${n} nota(s) apagada(s).`);
+});
 
 /* =====================================================================
    DRAWER
@@ -1064,30 +1079,46 @@ async function buildNfPdf(o) {
   font(7.5); doc.text(nfNum, 497, 54); doc.text(`SÉRIE: ${o.nf.serie}`, 497, 66);
   doc.setLineDashPattern([3, 2], 0); doc.line(L, 85, R, 85); doc.setLineDashPattern([], 0);
 
-  /* header: our store block | DANFE */
-  const top = 90, hh = 95;
-  box(L, top, 413, hh);
+  /* header: emitente | DANFE | chave de acesso (same 3-block grid as the owner's model) */
+  const top = 90, hh = 95, dxD = 275, dxC = 367, cxD = (dxD + dxC) / 2;
+  box(L, top, dxD - L, hh);
   const logo = await logoDataUrl();
   if (logo) doc.addImage(logo, 'PNG', L + 8, top + 10, 40, 40, 'logo', 'FAST');
   const tx = logo ? L + 54 : L + 8;
-  font(8.4, true); doc.text('ATUAL COMÉRCIO DE SUCATAS LTDA', tx, top + 20);
-  font(6.6, false, [60, 60, 64]);
-  doc.text(['Rua Horaide Prestes de Souza, 65, Letra D, Apt 606, Bloco H', 'Vila Real, Chapecó - SC', 'CEP 89805-807', '(49) 9 9104-1665'], tx, top + 30, { lineHeightFactor: 1.35 });
-  if (storeCnpj()) { font(6.8, true); doc.text(`CNPJ: ${storeCnpj()}`, L + 8, top + hh - 10); }
+  font(8, true); doc.text('ATUAL COMÉRCIO DE SUCATAS LTDA', tx, top + 16);
+  font(6.2, false, [60, 60, 64]);
+  doc.text(['Rua Horaide Prestes de Souza, 65, Letra D', 'Apt 606, Bloco H - Vila Real', 'Chapecó - SC  ·  CEP 89805-807', '(49) 9 9104-1665'], tx, top + 28, { lineHeightFactor: 1.4 });
+  if (storeCnpj()) { font(6.6, true, ink); doc.text(`CNPJ: ${storeCnpj()}`, L + 8, top + hh - 8); }
 
-  box(438, top, 132, hh);
-  font(13, true); doc.text('DANFE', 504, top + 16, { align: 'center' });
-  font(5.8); doc.text(['DOCUMENTO AUXILIAR', 'DA NOTA FISCAL', 'ELETRÔNICA'], 504, top + 26, { align: 'center', lineHeightFactor: 1.3 });
-  doc.line(438, top + 52, R, top + 52); doc.line(438, top + 78, R, top + 78);
-  font(6.4); doc.text(['0 - Entrada', '1 - Saída'], 446, top + 62, { lineHeightFactor: 1.5 });
-  box(523, top + 56, 22, 19); font(12, true); doc.text('1', 534, top + 70, { align: 'center' });
-  font(7.5, true); doc.text(nfNum, 504, top + 89, { align: 'center' });
+  box(dxD, top, dxC - dxD, hh);
+  font(12, true); doc.text('DANFE', cxD, top + 14, { align: 'center' });
+  font(4.8); doc.text(['DOCUMENTO AUXILIAR DA', 'NOTA FISCAL ELETRÔNICA'], cxD, top + 23, { align: 'center', lineHeightFactor: 1.3 });
+  doc.line(dxD, top + 40, dxC, top + 40);
+  font(5.6); doc.text(['0 - Entrada', '1 - Saída'], dxD + 5, top + 50, { lineHeightFactor: 1.5 });
+  box(dxC - 24, top + 44, 18, 16); font(11, true); doc.text('1', dxC - 15, top + 56, { align: 'center' });
+  doc.line(dxD, top + 64, dxC, top + 64);
+  font(7, true); doc.text(nfNum, cxD, top + 76, { align: 'center' });
+  font(5.6, false, gray); doc.text(`Série ${o.nf.serie}`, cxD, top + 87, { align: 'center' });
 
-  /* natureza */
+  box(dxC, top, R - dxC, hh);
+  font(5, false, gray); doc.text('CHAVE DE ACESSO', dxC + 5, top + 8);
+  box(dxC + 5, top + 11, R - dxC - 10, 20);
+  font(6, false, gray); doc.text('Gerada na emissão oficial da NF-e', (dxC + R) / 2, top + 24, { align: 'center' });
+  font(4.6, false, gray); doc.text('Consulta de autenticidade em www.nfe.fazenda.gov.br/portal', dxC + 5, top + 42);
+  doc.line(dxC, top + 50, R, top + 50);
+  font(5, false, gray); doc.text('PROTOCOLO DE AUTORIZAÇÃO DE USO', dxC + 5, top + 60);
+  font(6.4, false, gray); doc.text('Emitido na autorização da SEFAZ', dxC + 5, top + 74);
+  font(4.6, false, gray); doc.text('Prévia gerada pelo painel da loja', dxC + 5, top + 88);
+
+  /* natureza + inscrição estadual (values the owner's fiscal system fills) */
   let y = top + hh + 3;
-  cell(L, y, 450, 24, 'Natureza da operação', 'VENDA', { bold: true });
-  cell(475, y, 95, 24, 'Data da emissão', dateBR(emit));
-  y += 28;
+  cell(L, y, 360, 22, 'Natureza da operação', 'VENDA', { bold: true });
+  cell(385, y, 185, 22, 'Data da emissão', dateBR(emit));
+  y += 22;
+  cell(L, y, 220, 22, 'Inscrição estadual', '-');
+  cell(245, y, 160, 22, 'Insc. est. subst. trib.', '-');
+  cell(405, y, 165, 22, 'CNPJ', storeCnpj() || '-', { bold: true });
+  y += 26;
 
   /* destinatário */
   y = bar(y, 'Destinatário/Remetente');
@@ -1168,14 +1199,12 @@ async function buildNfPdf(o) {
   if (o.obs) { font(8.4); const ls = doc.splitTextToSize(`Observações: ${o.obs}`, W - 8); doc.text(ls, L + 4, y, { lineHeightFactor: 1.3 }); y += ls.length * 11 + 3; }
   y += 4; font(7.4, false, [60, 60, 64]);
   doc.text(doc.splitTextToSize('Peças usadas originais, provenientes de veículo desmontado por empresa credenciada no DETRAN-SC, conforme a Lei 12.977/2014. Garantia da loja em todas as peças.', W - 8), L + 4, y, { lineHeightFactor: 1.35 });
-  font(6.4, false, gray);
-  doc.text(doc.splitTextToSize('A nota fiscal oficial (NF-e), com chave de acesso e protocolo de autorização da SEFAZ, é emitida pelo sistema fiscal da loja. Este documento é apenas uma prévia.', W - 8), L + 4, addBottom - 28, { lineHeightFactor: 1.3 });
-  font(8, true, red);
-  doc.text('PRÉVIA - SEM VALOR FISCAL', L + 4, addBottom - 9);
+  font(6, false, gray);
+  doc.text(doc.splitTextToSize('A nota fiscal oficial (NF-e), com chave de acesso e protocolo de autorização da SEFAZ, é emitida pelo sistema fiscal da loja. Esta é uma prévia do layout para aprovação.', W - 8), L + 4, addBottom - 14, { lineHeightFactor: 1.3 });
 
-  /* watermark */
+  /* faint watermark, kept light (as requested) so the preview is not mistaken for an official NF-e */
   doc.saveGraphicsState();
-  doc.setGState(new doc.GState({ opacity: 0.08 }));
+  doc.setGState(new doc.GState({ opacity: 0.035 }));
   font(34, true, red);
   doc.text('SEM VALOR FISCAL', 297, 520, { align: 'center', angle: 32 });
   doc.restoreGraphicsState();
