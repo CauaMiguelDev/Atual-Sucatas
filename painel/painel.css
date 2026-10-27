@@ -490,3 +490,9 @@ tr:hover .o-open { background: var(--red); border-color: var(--red); }
 .field-err:empty { display: none; }
 .field-err.is-bad { color: #ffb020; }
 .field-err.is-ok { color: #3ccf7a; }
+
+/* admin: per-invoice actions */
+.adm__acts { white-space: nowrap; }
+.adm__acts .btn { margin-left: .35rem; }
+.adm__acts .btn:first-child { margin-left: 0; }
+@media (max-width: 700px) { .adm__acts { white-space: normal; } .adm__acts .btn { margin: .25rem .25rem 0 0; } }

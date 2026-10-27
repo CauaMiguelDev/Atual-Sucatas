@@ -112,10 +112,26 @@ function render() {
     <td>${esc(o.cliente.nome)}<span class="o-sub">${esc(o.cliente.cidade)}</span></td>
     <td>${fmtDate(o.nf.emitidaEm)}</td>
     <td>${o.nf.enviadaEm ? `<span class="pill pill--ok">Enviada ${fmtDate(o.nf.enviadaEm)}</span>` : '<span class="pill pill--muted">Não enviada</span>'}</td>
-    <td><strong>${brl(orderTotal(o))}</strong></td></tr>`).join('');
+    <td><strong>${brl(orderTotal(o))}</strong></td>
+    <td class="r adm__acts">
+      <a class="btn btn--line btn--sm" href="./?pedido=${encodeURIComponent(o.codigo)}" title="Editar no painel"><i class="ph ph-pencil-simple"></i><span class="btn__label" data-text="Editar"><span>Editar</span></span></a>
+      <button class="btn btn--line btn--sm" type="button" data-del-nf="${esc(o.codigo)}" title="Excluir a nota"><i class="ph ph-trash"></i><span class="btn__label" data-text="Excluir"><span>Excluir</span></span></button>
+    </td></tr>`).join('');
   $('#recent-empty').hidden = recent.length > 0;
   $('#updated').textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
+// excluir uma nota (o pedido continua; só a nota é removida)
+$('#recent').addEventListener('click', e => {
+  const b = e.target.closest('[data-del-nf]');
+  if (!b) return;
+  const list = loadOrders(), o = list.find(x => x.codigo === b.dataset.delNf);
+  if (!o || !o.nf) return;
+  if (!confirm(`Excluir a nota fiscal nº ${o.nf.numero} do pedido ${o.codigo}? O pedido continua; só a nota é removida. Não dá para desfazer.`)) return;
+  o.nf = null;
+  o.msgs = (o.msgs || []).filter(m => m.tpl !== 'nota');
+  saveOrders(list);
+  render();
+});
 // changes saved by the panel in another tab show up here without reloading
 addEventListener('storage', e => { if (e.key === ORDERS_KEY && !$('#app').hidden) render(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#app').hidden) render(); });

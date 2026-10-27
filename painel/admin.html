@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@0,75..125,400..900;1,75..125,600..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
   <link rel="stylesheet" href="../site/style.css?v=12">
-  <link rel="stylesheet" href="painel.css?v=27">
+  <link rel="stylesheet" href="painel.css?v=28">
 </head>
 <body class="panel">
 
@@ -78,10 +78,11 @@
         </table>
       </div>
 
-      <h2 class="adm__h">Últimas notas fiscais</h2>
+      <h2 class="adm__h">Notas fiscais</h2>
+      <p class="adm__scope"><i class="ph ph-pencil-simple" aria-hidden="true"></i><span><b>Excluir</b> remove a nota (o pedido continua). <b>Editar</b> abre o pedido no painel da loja, onde você muda cliente, peças e valores e gera a nota de novo. Para apagar <b>todas</b> as notas de uma vez, use o painel → Configurações.</span></p>
       <div class="table-wrap">
         <table class="orders adm__table">
-          <thead><tr><th>Nota</th><th>Pedido</th><th>Cliente</th><th>Gerada em</th><th>Envio ao cliente</th><th>Valor</th></tr></thead>
+          <thead><tr><th>Nota</th><th>Pedido</th><th>Cliente</th><th>Gerada em</th><th>Envio ao cliente</th><th>Valor</th><th class="r">Ações</th></tr></thead>
           <tbody id="recent"></tbody>
         </table>
         <p class="empty" id="recent-empty" hidden><i class="ph ph-receipt"></i>Nenhuma nota gerada ainda.</p>
@@ -91,6 +92,6 @@
 
   <script src="../compartilhado/orders.js?v=12"></script>
   <script src="admin-acesso.js?v=1"></script>
-  <script src="admin.js?v=2"></script>
+  <script src="admin.js?v=3"></script>
 </body>
 </html>
