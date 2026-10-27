@@ -398,11 +398,23 @@ $('#admin-form').addEventListener('submit', async e => {
   if (r.locked) showAdminLock();
 });
 $('#reset-demo').addEventListener('click', () => {
-  if (!confirm('Restaurar os pedidos de exemplo? As alterações feitas neste navegador serão apagadas.')) return;
+  const n = loadOrders().length;
+  if (!n) return toast('O painel já está vazio.');
+  if (!confirm(`Apagar TODOS os ${n} pedido(s) deste navegador? Isso não pode ser desfeito.`)) return;
   localStorage.removeItem(ORDERS_KEY);
   orders = loadOrders();
   renderAll();
-  toast('Pedidos de exemplo restaurados.');
+  toast('Painel limpo. Todos os pedidos foram apagados.');
+});
+/* delete a single order from the drawer */
+$('#d-delete').addEventListener('click', () => {
+  if (isNew || !current) return;
+  if (!confirm(`Apagar o pedido ${current.codigo} de ${current.cliente.nome || 'sem nome'}? Isso não pode ser desfeito.`)) return;
+  orders = loadOrders().filter(o => o.codigo !== current.codigo);
+  saveOrders(orders);
+  drawer.close();
+  renderAll();
+  toast(`Pedido ${current.codigo} apagado.`);
 });
 /* remove the invoice from every order (keeps the orders); also drops the "nota enviada" messages so the counts zero out */
 $('#clear-nf').addEventListener('click', () => {
@@ -611,6 +623,7 @@ function openDrawer(order, tab = 'cliente') {
   } else current = structuredClone(order);
   current.msgs ||= [];
   nfStep = current.nf ? 3 : 0; nfChecked = !!current.nf;
+  $('#d-delete').hidden = isNew;
   fillForm(); renderHead(); renderHistory(); updateTotal(); renderNext();
   setTpl('criado');
   setTab(tab);

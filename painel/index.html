@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
   <link rel="stylesheet" href="../site/style.css?v=12">
-  <link rel="stylesheet" href="painel.css?v=24">
+  <link rel="stylesheet" href="painel.css?v=25">
 </head>
 <body class="panel">
 
@@ -172,9 +172,9 @@
             <button class="btn btn--line" type="button" id="clear-nf"><i class="ph ph-trash" aria-hidden="true"></i><span class="btn__label" data-text="Apagar todas as notas"><span>Apagar todas as notas</span></span></button>
           </div>
           <div class="cfg__card">
-            <h2><i class="ph ph-database"></i>Dados de exemplo</h2>
-            <p class="cfg__hint">Apaga as alterações feitas neste navegador e volta aos três pedidos de demonstração.</p>
-            <button class="btn btn--line" type="button" id="reset-demo"><span class="btn__label" data-text="Restaurar exemplos"><span>Restaurar exemplos</span></span></button>
+            <h2><i class="ph ph-trash"></i>Limpar o painel</h2>
+            <p class="cfg__hint">Apaga <b>todos os pedidos</b> deste navegador. Use com cuidado: não dá para desfazer.</p>
+            <button class="btn btn--line" type="button" id="reset-demo"><i class="ph ph-trash" aria-hidden="true"></i><span class="btn__label" data-text="Apagar todos os pedidos"><span>Apagar todos os pedidos</span></span></button>
           </div>
           <div class="cfg__card cfg__card--note">
             <h2><i class="ph ph-info"></i>Sobre este protótipo</h2>
@@ -267,6 +267,7 @@
       </div>
 
       <footer class="drawer__foot">
+        <button class="btn btn--line d-delete" type="button" id="d-delete" hidden><i class="ph ph-trash" aria-hidden="true"></i><span class="btn__label" data-text="Apagar pedido"><span>Apagar pedido</span></span></button>
         <button class="btn btn--line" type="button" data-close><span class="btn__label" data-text="Cancelar"><span>Cancelar</span></span></button>
         <button class="btn btn--primary" type="submit"><i class="ph ph-check" aria-hidden="true"></i><span class="btn__label" data-text="Salvar pedido"><span>Salvar pedido</span></span></button>
       </footer>
@@ -285,8 +286,8 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="../compartilhado/orders.js?v=11"></script>
+  <script src="../compartilhado/orders.js?v=12"></script>
   <script src="admin-acesso.js?v=1"></script>
-  <script src="painel.js?v=31"></script>
+  <script src="painel.js?v=32"></script>
 </body>
 </html>

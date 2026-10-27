@@ -469,3 +469,7 @@ tr:hover .o-open { background: var(--red); border-color: var(--red); }
 .cfg__error { min-height: 0; margin-top: -.4rem; }
 .cfg__error:empty { display: none; }
 @media (min-width: 1081px) { #pw-form { grid-row: span 2; } }
+
+/* drawer: delete this order (danger) */
+.drawer__foot .d-delete { margin-right: auto; }
+.drawer__foot .d-delete:hover { color: var(--red-text); border-color: var(--red); }

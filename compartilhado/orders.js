@@ -4,60 +4,8 @@ const ORDER_STATUS = ['Pedido confirmado', 'Peça separada', 'Enviado', 'Em trâ
 const ORDERS_KEY = 'atual_pedidos_v2';
 const STORE_WHATS = '5549991041665';
 
-// Example data for the demo. Customer WhatsApp = the store's own number, so test messages go to the owner.
-const ORDERS_SEED = [
-  {
-    codigo: 'AS-1021', data: '2026-10-02T14:10:00',
-    cliente: { nome: 'Rodrigo Bortolini', whatsapp: STORE_WHATS, doc: '000.000.000-00', cidade: 'Chapecó - SC' },
-    itens: [{ desc: 'Farol esquerdo Hyundai i30 2014', qtd: 1, valor: 480 }],
-    frete: 0, status: 4, pagamento: 'Dinheiro',
-    historico: [
-      { status: 0, data: '2026-10-02T14:10:00' }, { status: 1, data: '2026-10-02T16:40:00' },
-      { status: 2, data: '2026-10-03T09:00:00' }, { status: 3, data: '2026-10-03T09:30:00' },
-      { status: 4, data: '2026-10-03T15:20:00' },
-    ],
-    rastreio: { transportadora: 'Retirada na loja', codigo: '' },
-    nf: { numero: 1187, serie: 1, emitidaEm: '2026-10-02T16:45:00', enviadaEm: '2026-10-02T16:50:00' },
-    msgs: [{ tpl: 'criado', data: '2026-10-02T14:15:00', status: 0 }, { tpl: 'nota', data: '2026-10-02T16:50:00', status: 1 }, { tpl: 'status', data: '2026-10-03T15:25:00', status: 4 }],
-  },
-  {
-    codigo: 'AS-1022', data: '2026-10-12T10:05:00',
-    cliente: { nome: 'Juliana Kessler', whatsapp: STORE_WHATS, doc: '000.000.000-00', cidade: 'Curitiba - PR' },
-    itens: [{ desc: 'Frente completa Golf GTI 7.5', qtd: 1, valor: 6900 }],
-    frete: 380, status: 3, previsao: '2026-10-21', pagamento: 'Cartão de crédito',
-    historico: [
-      { status: 0, data: '2026-10-12T10:05:00' }, { status: 1, data: '2026-10-12T15:00:00' },
-      { status: 2, data: '2026-10-13T08:30:00' }, { status: 3, data: '2026-10-14T11:00:00' },
-    ],
-    rastreio: { transportadora: 'Transportadora', codigo: 'EX123456789BR' },
-    nf: { numero: 1192, serie: 1, emitidaEm: '2026-10-13T08:10:00', enviadaEm: null },
-    msgs: [{ tpl: 'criado', data: '2026-10-12T10:10:00', status: 0 }, { tpl: 'status', data: '2026-10-14T11:05:00', status: 3 }],
-  },
-  {
-    codigo: 'AS-1023', data: '2026-10-16T09:20:00',
-    cliente: { nome: 'Anderson Wolff', whatsapp: STORE_WHATS, doc: '00.000.000/0001-00', cidade: 'Porto Alegre - RS' },
-    itens: [{ desc: 'Engate VW Jetta 2015', qtd: 1, valor: 650 }, { desc: 'Chicote do engate', qtd: 1, valor: 90 }],
-    frete: 120, status: 1, previsao: '2026-10-24', pagamento: 'Pix',
-    historico: [{ status: 0, data: '2026-10-16T09:20:00' }, { status: 1, data: '2026-10-16T14:00:00' }],
-    rastreio: { transportadora: '', codigo: '' },
-    nf: null,
-    msgs: [{ tpl: 'criado', data: '2026-10-16T09:25:00', status: 0 }],
-  },
-  {
-    codigo: 'AS-1024', data: '2026-10-19T10:20:00',
-    cliente: { nome: 'Pablo Henrique Martins', whatsapp: STORE_WHATS, doc: '000.000.000-00', cidade: 'Florianópolis - SC', endereco: 'Rua das Palmeiras, 230', bairro: 'Trindade', cep: '88036-000' },
-    itens: [
-      { desc: 'Farol esquerdo Hyundai i30 2014', qtd: 1, valor: 480 },
-      { desc: 'Lanterna traseira direita Hyundai i30 2014', qtd: 1, valor: 320 },
-      { desc: 'Retrovisor elétrico esquerdo Hyundai i30 2014', qtd: 1, valor: 290 },
-    ],
-    frete: 95, status: 2, previsao: '2026-10-23', pagamento: 'Pix', obs: 'Retrovisor embalado separado, com proteção extra.',
-    historico: [{ status: 0, data: '2026-10-19T10:20:00' }, { status: 1, data: '2026-10-19T14:05:00' }, { status: 2, data: '2026-10-19T16:30:00' }],
-    rastreio: { transportadora: 'Correios', codigo: 'QB123456789BR' },
-    nf: { numero: 1194, serie: 1, emitidaEm: '2026-10-19T15:10:00', enviadaEm: null },
-    msgs: [{ tpl: 'criado', data: '2026-10-19T10:25:00', status: 0 }, { tpl: 'status', data: '2026-10-19T16:35:00', status: 2 }],
-  },
-];
+// No examples: the panel starts empty and real orders are created by the store (kept in each browser until the backend exists).
+const ORDERS_SEED = [];
 
 function loadOrders() {
   try {

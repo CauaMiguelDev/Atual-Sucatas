@@ -19,11 +19,11 @@ O endereço principal, https://cauamigueldev.github.io/Atual-Sucatas/, abre o si
 **Site**
 - Navegue pelas seções: procedência, peças, pátio, envio para todo o Brasil, como comprar, dúvidas e contato.
 - Os botões de orçamento abrem o WhatsApp da loja com a mensagem pronta.
-- Clique em **Rastrear pedido** (no menu) e digite `AS-1024` ou `QB123456789BR` para ver o acompanhamento de um pedido de exemplo.
+- Clique em **Rastrear pedido** (no menu) e digite o código de um pedido ou o código de rastreio para ver o acompanhamento.
 
 **Painel**
 - No primeiro acesso, o painel pede para **criar um usuário e uma senha**. Depois disso, é só entrar com eles.
-- Já vêm 4 pedidos de exemplo (AS-1021 a AS-1024) para testar.
+- O painel começa **vazio**. Use **Novo pedido** para cadastrar. Em Configurações dá para **apagar todos os pedidos**, e cada pedido tem **Apagar pedido**.
 - No topo da tela de pedidos, o guia **Como atender um pedido pelo painel** resume o processo em 4 passos.
 - Cada pedido mostra o **próximo passo** (enviar confirmação, emitir nota, enviar nota, avisar entrega) com um botão que leva direto para ele.
 - Na aba **Notas**, a nota fiscal é feita **passo a passo**: conferir o cliente, conferir peças e pagamento, gerar e conferir o PDF, enviar ao cliente.
@@ -33,7 +33,6 @@ O endereço principal, https://cauamigueldev.github.io/Atual-Sucatas/, abre o si
 - As mensagens de WhatsApp levam o pedido completo: peças com valores, frete, total, pagamento, entrega, andamento e link de rastreio.
 - A tela **Notas fiscais** mostra quantas notas foram emitidas no mês, o valor total e quais já foram enviadas.
 
-> Os pedidos de exemplo usam o WhatsApp da própria loja como número do cliente. Assim, nos testes, as mensagens chegam para a loja e não para outra pessoa.
 
 ## Estrutura
 
