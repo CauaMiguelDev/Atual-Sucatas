@@ -539,27 +539,57 @@ function maskDoc(v) {
   const out = `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}`;
   return d.length > 12 ? `${out}-${d.slice(12)}` : out;
 }
-form.doc.addEventListener('input', e => { e.target.value = maskDoc(e.target.value); });
+// CPF/CNPJ check-digit validation: confirms the number is mathematically valid (catches typos/fakes),
+// NOT that it is registered at the Receita Federal (that needs an official/paid API + server).
+function validCPF(cpf) {
+  cpf = cpf.replace(/\D/g, '');
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+  const dig = n => { let s = 0; for (let i = 0; i < n; i++) s += +cpf[i] * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
+  return dig(9) === +cpf[9] && dig(10) === +cpf[10];
+}
+function validCNPJ(cnpj) {
+  cnpj = cnpj.replace(/\D/g, '');
+  if (cnpj.length !== 14 || /^(\d)\1{13}$/.test(cnpj)) return false;
+  const dig = len => { let s = 0, p = len - 7; for (let i = 0; i < len; i++) { s += +cnpj[i] * p--; if (p < 2) p = 9; } const r = s % 11; return r < 2 ? 0 : 11 - r; };
+  return dig(12) === +cnpj[12] && dig(13) === +cnpj[13];
+}
+function checkDoc(v) {
+  const d = v.replace(/\D/g, '');
+  if (!d) return { state: 'empty' };
+  const type = d.length <= 11 ? 'CPF' : 'CNPJ', full = type === 'CPF' ? 11 : 14;
+  if (d.length < full) return { state: 'incomplete', type };
+  return { state: (type === 'CPF' ? validCPF(d) : validCNPJ(d)) ? 'ok' : 'bad', type };
+}
+function showDocErr() {
+  const r = checkDoc(form.doc.value), el = $('#doc-err');
+  el.className = 'field-err' + (r.state === 'ok' ? ' is-ok' : r.state === 'bad' ? ' is-bad' : '');
+  el.textContent = r.state === 'bad' ? `${r.type} inválido — confira os números.` : r.state === 'ok' ? `${r.type} válido ✓` : '';
+}
+form.doc.addEventListener('input', e => { e.target.value = maskDoc(e.target.value); showDocErr(); });
 
 const maskCep = v => { const d = v.replace(/\D/g, '').slice(0, 8); return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d; };
+const cepErr = (msg, cls = '') => { const el = $('#cep-err'); el.className = 'field-err' + (cls ? ` ${cls}` : ''); el.textContent = msg; };
 let lastCep = '';
+// CEP checked against the real Correios base (ViaCEP): if it does not exist, it is flagged in the box.
 async function lookupCep() {
   const d = form.cep.value.replace(/\D/g, '');
-  if (d.length !== 8 || d === lastCep) return;
+  if (d.length < 8) { cepErr(''); lastCep = ''; return; }
+  if (d === lastCep) return;
   lastCep = d;
+  cepErr('Consultando o CEP…');
   try {
     const j = await (await fetch(`https://viacep.com.br/ws/${d}/json/`)).json();
-    if (j.erro) { toast('CEP não encontrado. Confira o número.'); return; }
+    if (j.erro) return cepErr('CEP não encontrado. Confira o número.', 'is-bad');
     if (j.logradouro && !form.endereco.value.trim()) form.endereco.value = j.logradouro;
     if (j.bairro && !form.bairro.value.trim()) form.bairro.value = j.bairro;
     if (j.localidade && j.uf) form.cidade.value = `${j.localidade} - ${j.uf}`;
+    cepErr(`${j.localidade} - ${j.uf}${j.bairro ? `, ${j.bairro}` : ''} ✓`, 'is-ok');
     renderTrackChip(); renderNext();
-    toast(j.logradouro ? 'Endereço preenchido pelo CEP. Falta o número.' : 'Cidade preenchida pelo CEP.');
     if (form.endereco.value.trim() && !/\d/.test(form.endereco.value)) {
       form.endereco.focus();
       form.endereco.setSelectionRange(form.endereco.value.length, form.endereco.value.length);
     }
-  } catch { toast('Não foi possível consultar o CEP agora. Preencha o endereço na mão.'); }
+  } catch { cepErr('Não consegui consultar o CEP agora. Preencha na mão.'); }
 }
 form.cep.addEventListener('input', e => { e.target.value = maskCep(e.target.value); lookupCep(); });
 form.cep.addEventListener('blur', lookupCep);
@@ -661,6 +691,7 @@ function openDrawer(order, tab = 'cliente') {
   nfStep = current.nf ? 3 : 0; nfChecked = !!current.nf;
   $('#d-delete').hidden = isNew;
   fillForm(); renderHead(); renderHistory(); updateTotal(); renderNext();
+  lastCep = ''; showDocErr(); cepErr(''); // refresh CPF/CNPJ and CEP feedback for this order
   setTpl('criado');
   setTab(tab);
   drawer.showModal();

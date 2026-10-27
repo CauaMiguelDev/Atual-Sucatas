@@ -484,3 +484,9 @@ tr:hover .o-open { background: var(--red); border-color: var(--red); }
 .notify__btn.is-current { border-color: var(--red); box-shadow: inset 0 0 0 1px var(--red); }
 .notify__btn--warn i { color: #ffb020; }
 .notify__btn--warn:hover { border-color: #ffb020; background: rgba(255, 176, 32, .08); }
+
+/* inline field validation (CPF/CNPJ, CEP) */
+.field-err { margin-top: .35rem; font-size: .78rem; font-weight: 600; color: var(--muted); line-height: 1.3; }
+.field-err:empty { display: none; }
+.field-err.is-bad { color: #ffb020; }
+.field-err.is-ok { color: #3ccf7a; }

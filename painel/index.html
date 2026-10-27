@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
   <link rel="stylesheet" href="../site/style.css?v=12">
-  <link rel="stylesheet" href="painel.css?v=26">
+  <link rel="stylesheet" href="painel.css?v=27">
 </head>
 <body class="panel">
 
@@ -210,10 +210,10 @@
           <div class="grid2">
             <label class="field span2"><span>Nome completo *</span><input class="input" name="nome" required></label>
             <label class="field"><span>WhatsApp com DDD *</span><input class="input" name="whatsapp" inputmode="tel" placeholder="(49) 9 9999-9999" required></label>
-            <label class="field"><span>CPF ou CNPJ</span><input class="input" name="doc" placeholder="Para a nota fiscal"></label>
+            <label class="field"><span>CPF ou CNPJ</span><input class="input" name="doc" placeholder="Para a nota fiscal" inputmode="numeric"><small class="field-err" id="doc-err" role="status"></small></label>
             <label class="field span2"><span>Endereço (rua e número)</span><input class="input" name="endereco" placeholder="Para a nota fiscal"></label>
             <label class="field"><span>Bairro</span><input class="input" name="bairro"></label>
-            <label class="field"><span>CEP</span><input class="input" name="cep" inputmode="numeric" placeholder="00000-000"></label>
+            <label class="field"><span>CEP</span><input class="input" name="cep" inputmode="numeric" placeholder="00000-000"><small class="field-err" id="cep-err" role="status"></small></label>
             <label class="field span2"><span>Cidade - UF *</span><input class="input" name="cidade" placeholder="Ex.: Sorocaba - SP" required></label>
           </div>
         </section>
@@ -238,7 +238,7 @@
           </div>
 
           <h3 class="sub">Avisar o cliente pelo WhatsApp</h3>
-          <p class="cfg__hint">Cada botão atualiza a situação do pedido e abre a mensagem pronta para o cliente, com o código de rastreio e o link de acompanhamento.</p>
+          <p class="cfg__hint"><b>A atualização é manual, feita por você.</b> Quando cada etapa acontecer (despachou, saiu para entrega, entregou…), clique no botão dela: a situação do pedido muda e a mensagem pronta abre no WhatsApp, com o código de rastreio e o link. O painel <b>não</b> acompanha a transportadora sozinho — o acompanhamento automático depende da integração futura (servidor).</p>
           <div class="notify" id="notify"></div>
 
           <h3 class="sub">Histórico</h3>
@@ -293,6 +293,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="../compartilhado/orders.js?v=12"></script>
   <script src="admin-acesso.js?v=1"></script>
-  <script src="painel.js?v=33"></script>
+  <script src="painel.js?v=34"></script>
 </body>
 </html>
