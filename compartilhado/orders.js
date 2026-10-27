@@ -1,6 +1,6 @@
 // Shared order store for the site (tracking) and the store panel.
 // ponytail: localStorage only, so data lives in one browser. Swap load/save for an API when the real backend exists.
-const ORDER_STATUS = ['Pedido confirmado', 'Peça separada', 'Enviado', 'Em trânsito', 'Entregue'];
+const ORDER_STATUS = ['Pedido confirmado', 'Peça separada', 'Enviado', 'Em trânsito', 'Saiu para entrega', 'Entregue'];
 const ORDERS_KEY = 'atual_pedidos_v2';
 const STORE_WHATS = '5549991041665';
 

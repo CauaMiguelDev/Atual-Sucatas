@@ -450,16 +450,41 @@ function setTab(t) {
   if (t === 'entrega') { readForm(); renderNotify(); }
 }
 
-/* Entrega tab: one-click customer notifications. Each button sets the situação and opens the ready message. */
-const NOTIFY_ICON = ['ph-check-circle', 'ph-wrench', 'ph-package', 'ph-truck', 'ph-flag-checkered'];
+/* Entrega tab: one-click customer notifications + the delivery schedule built from the previsão. */
+const NOTIFY_ICON = ['ph-check-circle', 'ph-wrench', 'ph-package', 'ph-truck', 'ph-paper-plane-tilt', 'ph-flag-checkered'];
+// planned fraction of the order→previsão window for stages 0..4 (Entregue is always confirmed by hand)
+const SCHED_FRAC = [0, 0.15, 0.35, 0.6, 1];
+const schedEnds = o => { const start = new Date(o.data).setHours(0, 0, 0, 0); const end = new Date(`${o.previsao}T00:00:00`).getTime(); return { start, end }; };
+const plannedDate = (o, i) => { const { start, end } = schedEnds(o); return new Date(start + SCHED_FRAC[i] * (end - start)); };
+function plannedStage(o) {
+  if (!o.previsao) return null;
+  const { start, end } = schedEnds(o);
+  if (!(end > start)) return null;
+  const today = new Date().setHours(0, 0, 0, 0);
+  let stage = 0;
+  SCHED_FRAC.forEach((f, i) => { if (today >= start + f * (end - start)) stage = i; });
+  return stage; // 0..4
+}
 function renderNotify() {
   if (!current) return;
+  const sug = plannedStage(current);
   const steps = ORDER_STATUS.map((s, i) =>
-    `<button type="button" class="notify__btn ${i === current.status ? 'is-current' : ''} ${i < current.status ? 'is-done' : ''}" data-notify="${i}"><i class="ph ${NOTIFY_ICON[i]}"></i>${s}</button>`).join('');
+    `<button type="button" class="notify__btn ${i === current.status ? 'is-current' : ''} ${i < current.status ? 'is-done' : ''} ${i === sug ? 'is-suggested' : ''}" data-notify="${i}"><i class="ph ${NOTIFY_ICON[i]}"></i>${s}${i === sug ? '<span class="notify__today">hoje</span>' : ''}</button>`).join('');
   const t = current.tentativas || 0;
   $('#notify').innerHTML = steps +
     `<button type="button" class="notify__btn notify__btn--warn" data-notify="attempt"><i class="ph ph-house-line"></i>Não consegui entregar${t ? ` (${t}/3)` : ''}</button>`;
+
+  const box = $('#sched');
+  if (!current.previsao) {
+    box.innerHTML = '<i class="ph ph-info"></i> Defina a <b>previsão de entrega</b> acima para montar a agenda e destacar a etapa de cada dia.';
+    return;
+  }
+  if (sug == null) { box.innerHTML = '<i class="ph ph-warning"></i> A previsão precisa ser depois da data do pedido.'; return; }
+  const ag = [1, 2, 3, 4].map(i => `${ORDER_STATUS[i]}: <b>${plannedDate(current, i).toLocaleDateString('pt-BR')}</b>`).join(' · ');
+  const tail = current.status < sug ? ' — clique no botão em destaque para atualizar e avisar o cliente.' : ' A situação já está em dia.';
+  box.innerHTML = `<i class="ph ph-calendar-check"></i> Pela previsão de <b>${fmtDay(current.previsao)}</b>, hoje o pedido deveria estar em <b>${ORDER_STATUS[sug]}</b>.${tail}<div class="sched__plan">Agenda prevista — ${ag}</div>`;
 }
+form.previsao.addEventListener('change', () => { if (current && !$('[data-tab-panel="entrega"]').hidden) { readForm(); renderNotify(); } });
 $('#notify').addEventListener('click', e => {
   const b = e.target.closest('[data-notify]');
   if (!b || !current) return;
@@ -908,6 +933,7 @@ const EVENT = [
   `sua peça já foi separada e conferida ${E.wrench}`,
   `seu pedido foi enviado ${E.truck}`,
   `seu pedido está a caminho ${E.truck}`,
+  `seu pedido saiu para entrega ${E.truck}`,
   `seu pedido foi entregue ${E.ok}`,
 ];
 // tracking message for a delivery stage

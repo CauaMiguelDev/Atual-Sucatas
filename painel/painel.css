@@ -496,3 +496,12 @@ tr:hover .o-open { background: var(--red); border-color: var(--red); }
 .adm__acts .btn { margin-left: .35rem; }
 .adm__acts .btn:first-child { margin-left: 0; }
 @media (max-width: 700px) { .adm__acts { white-space: normal; } .adm__acts .btn { margin: .25rem .25rem 0 0; } }
+
+/* Entrega: schedule / suggested stage */
+.notify__btn.is-suggested { border-color: var(--red); box-shadow: 0 0 0 2px rgba(225, 38, 45, .35); }
+.notify__today { margin-left: .1rem; padding: .05rem .4rem; border-radius: 999px; background: var(--red); color: #fff; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
+.sched { display: block; margin-top: .7rem; padding: .8rem .9rem; border-radius: 10px; border: 1px dashed var(--line-2); color: var(--muted); font-size: .88rem; line-height: 1.5; }
+.sched i { color: var(--red-text); vertical-align: -2px; margin-right: .2rem; }
+.sched b { color: var(--text); }
+.sched__plan { margin-top: .4rem; font-size: .82rem; color: var(--muted); }
+.sched__plan b { color: #d0d2d6; font-weight: 600; }
