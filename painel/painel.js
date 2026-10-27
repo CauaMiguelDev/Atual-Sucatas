@@ -444,7 +444,42 @@ function setTab(t) {
   $$('[data-tab-panel]').forEach(p => (p.hidden = p.dataset.tabPanel !== t));
   if (t === 'msg') { readForm(); renderMsg(); }
   if (t === 'nota') renderNotes();
+  if (t === 'entrega') { readForm(); renderNotify(); }
 }
+
+/* Entrega tab: one-click customer notifications. Each button sets the situação and opens the ready message. */
+const NOTIFY_ICON = ['ph-check-circle', 'ph-wrench', 'ph-package', 'ph-truck', 'ph-flag-checkered'];
+function renderNotify() {
+  if (!current) return;
+  const steps = ORDER_STATUS.map((s, i) =>
+    `<button type="button" class="notify__btn ${i === current.status ? 'is-current' : ''} ${i < current.status ? 'is-done' : ''}" data-notify="${i}"><i class="ph ${NOTIFY_ICON[i]}"></i>${s}</button>`).join('');
+  const t = current.tentativas || 0;
+  $('#notify').innerHTML = steps +
+    `<button type="button" class="notify__btn notify__btn--warn" data-notify="attempt"><i class="ph ph-house-line"></i>Não consegui entregar${t ? ` (${t}/3)` : ''}</button>`;
+}
+$('#notify').addEventListener('click', e => {
+  const b = e.target.closest('[data-notify]');
+  if (!b || !current) return;
+  readForm();
+  if (!valid()) return; // needs a valid customer WhatsApp
+  const v = b.dataset.notify;
+  let text;
+  if (v === 'attempt') {
+    current.tentativas = Math.min((current.tentativas || 0) + 1, 3);
+    text = attemptMsg(current);
+    current.msgs.push({ tpl: 'tentativa', data: new Date().toISOString(), status: current.status });
+  } else {
+    const stage = +v;
+    current.status = stage;
+    form.status.value = stage;
+    text = deliveryMsg(current, stage);
+    current.msgs.push({ tpl: 'status', data: new Date().toISOString(), status: stage });
+  }
+  commit(); // saves status change + history
+  openChat(text);
+  fillForm(); renderHead(); renderHistory(); renderNext(); renderNotify();
+  toast(`Aviso aberto ${IS_MOBILE ? 'no WhatsApp' : 'no WhatsApp Web'}. Confira e envie.`);
+});
 $('#d-pay').innerHTML = `<option value="">Escolha</option>${PAYMENTS.map(p => `<option>${p}</option>`).join('')}`;
 $$('.tabs [data-tab]').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
 
@@ -622,6 +657,7 @@ function openDrawer(order, tab = 'cliente') {
     };
   } else current = structuredClone(order);
   current.msgs ||= [];
+  current.tentativas ||= 0;
   nfStep = current.nf ? 3 : 0; nfChecked = !!current.nf;
   $('#d-delete').hidden = isNew;
   fillForm(); renderHead(); renderHistory(); updateTotal(); renderNext();
@@ -821,7 +857,6 @@ const SIGN = `*Atual Sucatas*\nPeças originais com garantia e nota fiscal\n${E.
 const tidy = lines => lines.filter(l => l !== null && l !== undefined)
   .filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n').trim();
 const firstName = n => String(n || '').trim().split(/\s+/)[0];
-const pieces = o => o.itens.map(i => (i.qtd > 1 ? `${i.qtd}x ${i.desc}` : i.desc)).join(', ');
 const isPickup = o => /retirada/i.test(o.rastreio?.transportadora || '');
 const partsTotal = o => o.itens.reduce((t, i) => t + i.qtd * i.valor, 0);
 const itemLines = o => o.itens.map(i => `• ${i.qtd}x ${i.desc} | ${brl(i.qtd * i.valor)}`);
@@ -832,17 +867,56 @@ const valueLines = o => [
   `*Total: ${brl(orderTotal(o))}*`,
   o.pagamento ? `${E.card} Pagamento: ${o.pagamento}` : null,
 ];
-// order progress as a checklist: done, now, still to come
-const progressLines = o => ORDER_STATUS.map((s, i) =>
-  i < o.status || (i === o.status && i === LAST) ? `${E.ok} ${s}` : i === o.status ? `${E.point} *${s}*` : `${E.wait} ${s}`);
-
-const STATUS_LINE = [
-  `Seu pedido foi confirmado ${E.ok}`,
-  `Sua peça já foi separada e conferida ${E.wrench}`,
-  `Seu pedido foi enviado ${E.truck}`,
-  `Seu pedido está a caminho ${E.truck}`,
-  `Seu pedido foi entregue ${E.ok}`,
+const destLine = o => isPickup(o) ? `${E.store} Retirada na loja, em Chapecó - SC` : `${E.pin} Destino: ${o.cliente.cidade}`;
+// greeting line per delivery stage (owner's concise model)
+const EVENT = [
+  `seu pedido foi confirmado ${E.ok}`,
+  `sua peça já foi separada e conferida ${E.wrench}`,
+  `seu pedido foi enviado ${E.truck}`,
+  `seu pedido está a caminho ${E.truck}`,
+  `seu pedido foi entregue ${E.ok}`,
 ];
+// tracking message for a delivery stage
+function deliveryMsg(o, stage) {
+  return tidy([
+    `Olá, *${(o.cliente.nome || '').toUpperCase()}*! ${EVENT[stage]}`,
+    '',
+    `${E.box} Código de rastreio: *${o.rastreio?.codigo || o.codigo}*`,
+    `${E.memo} Situação: ${ORDER_STATUS[stage]}`,
+    o.rastreio?.transportadora && !isPickup(o) ? `${E.truck} Transportadora: ${o.rastreio.transportadora}` : null,
+    o.previsao && stage < LAST ? `${E.cal} Previsão de entrega: ${fmtDay(o.previsao)}` : null,
+    destLine(o),
+    '',
+    `${E.link} *Acompanhe seu pedido em tempo real:*`,
+    trackLink(o),
+    '',
+    stage === LAST ? `Obrigado pela confiança! ${E.hands} Precisando de outra peça, é só chamar.` : 'Você receberá novas atualizações por aqui.',
+    '',
+    SIGN,
+  ]);
+}
+// delivery attempt failed: up to 3 tries, then the order goes back to the store
+function attemptMsg(o) {
+  const n = Math.min(o.tentativas || 1, 3), last = n >= 3;
+  return tidy([
+    `Olá, *${(o.cliente.nome || '').toUpperCase()}*! Passamos para entregar seu pedido, mas não encontramos ninguém no endereço ${E.box}`,
+    '',
+    `${E.box} Código de rastreio: *${o.rastreio?.codigo || o.codigo}*`,
+    `${E.memo} Situação: tentativa de entrega sem sucesso (${n}ª de 3)`,
+    o.cliente.endereco ? `${E.pin} Endereço: ${o.cliente.endereco}${o.cliente.bairro ? `, ${o.cliente.bairro}` : ''} - ${o.cliente.cidade}` : `${E.pin} Destino: ${o.cliente.cidade}`,
+    '',
+    last
+      ? 'Esta foi a *3ª e última tentativa*. Como não foi possível entregar, o pedido será *devolvido à nossa loja*. Fale com a gente para combinar um novo envio ou a retirada em Chapecó - SC.'
+      : 'A transportadora vai tentar entregar de novo. São *até 3 tentativas*. Se puder, deixe alguém no local para receber. Depois de 3 tentativas sem sucesso, o pedido volta para a loja.',
+    '',
+    `${E.link} *Acompanhe seu pedido:*`,
+    trackLink(o),
+    '',
+    `${E.chat} Qualquer dúvida, é só responder esta mensagem.`,
+    '',
+    SIGN,
+  ]);
+}
 // attach = the message goes out together with the PDF
 const TEMPLATES = {
   criado: (o, kind) => tidy([
@@ -862,25 +936,7 @@ const TEMPLATES = {
     '',
     SIGN,
   ]),
-  status: o => tidy([
-    `Olá, *${firstName(o.cliente.nome)}*! ${STATUS_LINE[o.status]}`,
-    '',
-    `${E.box} *Pedido ${o.codigo}*`,
-    ...progressLines(o),
-    '',
-    o.rastreio?.transportadora && !isPickup(o) ? `${E.truck} Transportadora: ${o.rastreio.transportadora}` : null,
-    o.rastreio?.codigo ? `${E.search} Código de rastreio: *${o.rastreio.codigo}*` : null,
-    o.previsao && o.status < LAST ? `${E.cal} Previsão de entrega: *${fmtDay(o.previsao)}*` : null,
-    isPickup(o) ? `${E.store} Retirada na loja, em Chapecó` : `${E.pin} Destino: ${o.cliente.cidade}`,
-    `${E.wrench} Peças: ${pieces(o)}`,
-    '',
-    `${E.link} *Acompanhe em tempo real:*`,
-    trackLink(o),
-    '',
-    o.status === LAST ? `Obrigado pela confiança! ${E.hands} Precisando de outra peça, é só chamar.` : `${E.chat} Qualquer dúvida, é só responder esta mensagem.`,
-    '',
-    SIGN,
-  ]),
+  status: o => deliveryMsg(o, o.status),
   nota: (o, attach) => tidy([
     `Olá, *${firstName(o.cliente.nome)}*! A nota fiscal do seu pedido foi emitida ${E.receipt}`,
     '',

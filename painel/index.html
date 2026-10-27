@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
   <link rel="stylesheet" href="../site/style.css?v=12">
-  <link rel="stylesheet" href="painel.css?v=25">
+  <link rel="stylesheet" href="painel.css?v=26">
 </head>
 <body class="panel">
 
@@ -236,6 +236,11 @@
             <label class="field"><span>Transportadora</span><input class="input" name="transportadora" placeholder="Correios, transportadora ou retirada"></label>
             <label class="field"><span>Código de rastreio</span><input class="input" name="rastreio" placeholder="Opcional"></label>
           </div>
+
+          <h3 class="sub">Avisar o cliente pelo WhatsApp</h3>
+          <p class="cfg__hint">Cada botão atualiza a situação do pedido e abre a mensagem pronta para o cliente, com o código de rastreio e o link de acompanhamento.</p>
+          <div class="notify" id="notify"></div>
+
           <h3 class="sub">Histórico</h3>
           <ol class="timeline" id="d-history"></ol>
         </section>
@@ -288,6 +293,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="../compartilhado/orders.js?v=12"></script>
   <script src="admin-acesso.js?v=1"></script>
-  <script src="painel.js?v=32"></script>
+  <script src="painel.js?v=33"></script>
 </body>
 </html>
