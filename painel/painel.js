@@ -107,6 +107,7 @@ function enterApp() {
   sessionStorage.setItem(SESSION_KEY, '1');
   $('#auth').hidden = true;
   $('#app').hidden = false;
+  autoAdvanceSchedule();
   renderAll();
   armIdle();
   // deep link from the admin area: painel/?pedido=AS-1027 opens that order
@@ -465,6 +466,19 @@ function plannedStage(o) {
   SCHED_FRAC.forEach((f, i) => { if (today >= start + f * (end - start)) stage = i; });
   return stage; // 0..4
 }
+// move each order forward to the stage its previsão plans for today (never past "Saiu para entrega", never backwards).
+// Runs when the panel opens — there is no server to advance it in the background, and the customer message is still sent by hand.
+function autoAdvanceSchedule() {
+  let changed = false;
+  orders.forEach(o => {
+    const sug = plannedStage(o);
+    if (sug == null || o.status >= sug || o.status >= 4) return;
+    for (let s = o.status + 1; s <= sug; s++) o.historico.push({ status: s, data: new Date().toISOString(), auto: true });
+    o.status = sug;
+    changed = true;
+  });
+  if (changed) saveOrders(orders);
+}
 function renderNotify() {
   if (!current) return;
   const sug = plannedStage(current);
@@ -481,7 +495,9 @@ function renderNotify() {
   }
   if (sug == null) { box.innerHTML = '<i class="ph ph-warning"></i> A previsão precisa ser depois da data do pedido.'; return; }
   const ag = [1, 2, 3, 4].map(i => `${ORDER_STATUS[i]}: <b>${plannedDate(current, i).toLocaleDateString('pt-BR')}</b>`).join(' · ');
-  const tail = current.status < sug ? ' — clique no botão em destaque para atualizar e avisar o cliente.' : ' A situação já está em dia.';
+  const tail = current.status < sug
+    ? ' — clique no botão em destaque para avançar e avisar o cliente.'
+    : ' Clique nessa etapa para avisar o cliente, se ainda não avisou.';
   box.innerHTML = `<i class="ph ph-calendar-check"></i> Pela previsão de <b>${fmtDay(current.previsao)}</b>, hoje o pedido deveria estar em <b>${ORDER_STATUS[sug]}</b>.${tail}<div class="sched__plan">Agenda prevista — ${ag}</div>`;
 }
 form.previsao.addEventListener('change', () => { if (current && !$('[data-tab-panel="entrega"]').hidden) { readForm(); renderNotify(); } });
