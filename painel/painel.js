@@ -983,7 +983,7 @@ function attemptMsg(o) {
     '',
     last
       ? 'Esta foi a *3ª e última tentativa*. Como não foi possível entregar, o pedido será *devolvido à nossa loja*. Fale com a gente para combinar um novo envio ou a retirada em Chapecó - SC.'
-      : 'A transportadora vai tentar entregar de novo. São *até 3 tentativas*. Se puder, deixe alguém no local para receber. Depois de 3 tentativas sem sucesso, o pedido volta para a loja.',
+      : `Você ainda tem *${3 - n} ${3 - n === 1 ? 'chance' : 'chances'}* de entrega (são 3 no total). A transportadora vai tentar de novo — se puder, deixe alguém no local para receber. Depois da 3ª tentativa sem sucesso, o pedido volta para a loja.`,
     '',
     `${E.link} *Acompanhe seu pedido:*`,
     trackLink(o),
