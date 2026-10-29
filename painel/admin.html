@@ -70,6 +70,16 @@
       <h2 class="adm__h">Pedidos</h2>
       <div class="kpis" id="k-ped"></div>
 
+      <h2 class="adm__h">Todos os pedidos</h2>
+      <p class="adm__scope"><i class="ph ph-pencil-simple" aria-hidden="true"></i><span><b>Editar</b> abre o pedido no painel (cliente, peças, entrega e nota). <b>Excluir</b> apaga o pedido inteiro — não dá para desfazer.</span></p>
+      <div class="table-wrap">
+        <table class="orders adm__table">
+          <thead><tr><th>Pedido</th><th>Cliente</th><th>Peças</th><th>Total</th><th>Situação</th><th>Nota</th><th class="r">Ações</th></tr></thead>
+          <tbody id="orders-rows"></tbody>
+        </table>
+        <p class="empty" id="orders-empty" hidden><i class="ph ph-package"></i>Nenhum pedido ainda.</p>
+      </div>
+
       <h2 class="adm__h">Mês a mês</h2>
       <div class="table-wrap">
         <table class="orders adm__table">
@@ -92,6 +102,6 @@
 
   <script src="../compartilhado/orders.js?v=13"></script>
   <script src="admin-acesso.js?v=1"></script>
-  <script src="admin.js?v=3"></script>
+  <script src="admin.js?v=4"></script>
 </body>
 </html>

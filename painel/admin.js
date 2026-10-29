@@ -118,8 +118,32 @@ function render() {
       <button class="btn btn--line btn--sm" type="button" data-del-nf="${esc(o.codigo)}" title="Excluir a nota"><i class="ph ph-trash"></i><span class="btn__label" data-text="Excluir"><span>Excluir</span></span></button>
     </td></tr>`).join('');
   $('#recent-empty').hidden = recent.length > 0;
+
+  const all = [...orders].sort((a, b) => b.data.localeCompare(a.data));
+  $('#orders-rows').innerHTML = all.map(o => `<tr>
+    <td><span class="o-code o-code--sm">${esc(o.codigo)}</span><span class="o-sub">${fmtDate(o.data)}</span></td>
+    <td>${esc(o.cliente.nome || 'Sem nome')}<span class="o-sub">${esc(o.cliente.cidade || '')}</span></td>
+    <td><div class="o-items">${o.itens.map(i => esc(i.desc)).join(', ') || '<span class="o-sub">Sem peças</span>'}</div></td>
+    <td><strong>${brl(orderTotal(o))}</strong></td>
+    <td>${esc(ORDER_STATUS[o.status])}</td>
+    <td>${o.nf ? `Nº ${o.nf.numero}` : '<span class="o-sub">Sem nota</span>'}</td>
+    <td class="r adm__acts">
+      <a class="btn btn--line btn--sm" href="./?pedido=${encodeURIComponent(o.codigo)}" title="Editar no painel"><i class="ph ph-pencil-simple"></i><span class="btn__label" data-text="Editar"><span>Editar</span></span></a>
+      <button class="btn btn--line btn--sm" type="button" data-del-order="${esc(o.codigo)}" title="Excluir o pedido"><i class="ph ph-trash"></i><span class="btn__label" data-text="Excluir"><span>Excluir</span></span></button>
+    </td></tr>`).join('');
+  $('#orders-empty').hidden = all.length > 0;
   $('#updated').textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
+// excluir o pedido inteiro
+$('#orders-rows').addEventListener('click', e => {
+  const b = e.target.closest('[data-del-order]');
+  if (!b) return;
+  const list = loadOrders(), o = list.find(x => x.codigo === b.dataset.delOrder);
+  if (!o) return;
+  if (!confirm(`Excluir o pedido ${o.codigo} de ${o.cliente.nome || 'sem nome'}? Apaga o pedido inteiro. Não dá para desfazer.`)) return;
+  saveOrders(list.filter(x => x.codigo !== o.codigo));
+  render();
+});
 // excluir uma nota (o pedido continua; só a nota é removida)
 $('#recent').addEventListener('click', e => {
   const b = e.target.closest('[data-del-nf]');

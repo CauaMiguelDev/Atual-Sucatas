@@ -111,7 +111,7 @@ function enterApp() {
   armIdle();
   // deep link from the admin area: painel/?pedido=AS-1027 opens that order
   const code = new URLSearchParams(location.search).get('pedido');
-  if (code) { const o = orders.find(x => x.codigo === code); if (o) openDrawer(o, 'nota'); }
+  if (code) { const o = orders.find(x => x.codigo === code); if (o) openDrawer(o); }
 }
 function logout(msg) {
   sessionStorage.removeItem(SESSION_KEY);
