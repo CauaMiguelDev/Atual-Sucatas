@@ -217,7 +217,7 @@ function setView(v) {
   $$('[data-view-panel]').forEach(p => (p.hidden = p.dataset.viewPanel !== v));
   [$('#view-title').textContent, $('#view-sub').textContent] = VIEWS[v];
   $('#new-order').hidden = v === 'config';
-  if (v === 'config') { showAdminLock(); $('#site-url').value = siteUrl(); $('#store-cnpj').value = storeCnpj(); $('#cfg-user').textContent = readAuth()?.user || ''; }
+  if (v === 'config') { showAdminLock(); $('#site-url').value = siteUrl(); $('#store-cnpj').value = storeCnpj(); $('#cfg-user').textContent = readAuth()?.user || ''; $('#sync-key').value = syncKey(); renderSyncStatus(); }
 }
 $$('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
 
@@ -380,6 +380,20 @@ $('#site-form').addEventListener('submit', e => {
   localStorage.setItem(SITE_KEY, url);
   toast('Endereço do site salvo.');
 });
+/* sync key: same value in every device links them to the shared store */
+function renderSyncStatus() {
+  $('#sync-status').textContent = syncKey()
+    ? 'Sincronização ligada. Os pedidos aparecem em todos os aparelhos com esta chave.'
+    : 'Sincronização desligada. Os pedidos ficam só neste navegador.';
+}
+$('#sync-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const k = $('#sync-key').value.trim();
+  if (k) localStorage.setItem(SYNC_KEY_STORE, k); else localStorage.removeItem(SYNC_KEY_STORE);
+  localStorage.removeItem(SYNC_QUEUE); // começa a fila limpa com a nova chave
+  toast(k ? 'Chave salva. Buscando os pedidos…' : 'Sincronização desligada.');
+  setTimeout(() => location.reload(), 600); // recarrega para (re)iniciar a sincronização
+});
 /* administrator entry: correct password opens admin.html (check, lock and session in admin-acesso.js) */
 let adminTimer;
 function showAdminLock() {
@@ -401,11 +415,12 @@ $('#admin-form').addEventListener('submit', async e => {
   $('#admin-error').textContent = ADMIN.message(r);
   if (r.locked) showAdminLock();
 });
-$('#reset-demo').addEventListener('click', () => {
+$('#reset-demo').addEventListener('click', async () => {
   const n = loadOrders().length;
   if (!n) return toast('O painel já está vazio.');
-  if (!confirm(`Apagar TODOS os ${n} pedido(s) deste navegador? Isso não pode ser desfeito.`)) return;
-  localStorage.removeItem(ORDERS_KEY);
+  const aviso = syncKey() ? 'de TODOS os aparelhos' : 'deste navegador';
+  if (!confirm(`Apagar TODOS os ${n} pedido(s) ${aviso}? Isso não pode ser desfeito.`)) return;
+  await clearAllOrders();
   orders = loadOrders();
   renderAll();
   toast('Painel limpo. Todos os pedidos foram apagados.');
@@ -1513,6 +1528,8 @@ function syncOrders() {
 }
 addEventListener('storage', e => { if (e.key === ORDERS_KEY && !$('#app').hidden) syncOrders(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#app').hidden) syncOrders(); });
+// pedidos trazidos de outro aparelho pela sincronização
+addEventListener('orders:changed', () => { if (!$('#app').hidden) syncOrders(); });
 
 /* dialogs: close buttons + backdrop click */
 $$('dialog').forEach(d => {

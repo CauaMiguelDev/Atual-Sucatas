@@ -4,6 +4,12 @@
   command = ""
   publish = "."
 
+# Funções que guardam os pedidos num lugar só, visível em todos os aparelhos
+# (Netlify Blobs). Sem servidor próprio e de graça no volume da loja.
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
 # A raiz abre o site da loja (no GitHub Pages o index.html da raiz faz o mesmo).
 [[redirects]]
   from = "/"

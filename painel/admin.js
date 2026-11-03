@@ -159,6 +159,8 @@ $('#recent').addEventListener('click', e => {
 // changes saved by the panel in another tab show up here without reloading
 addEventListener('storage', e => { if (e.key === ORDERS_KEY && !$('#app').hidden) render(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#app').hidden) render(); });
+// pedidos trazidos de outro aparelho pela sincronização
+addEventListener('orders:changed', () => { if (!$('#app').hidden) render(); });
 
 /* =====================================================================
    BOOT
