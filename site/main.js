@@ -174,8 +174,13 @@ track.addEventListener('click', e => { // click on backdrop
   if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) track.close();
 });
 
-function renderTrack(code) {
-  const o = findOrder(code);
+async function renderTrack(code) {
+  trackResult.innerHTML = `<p class="track__empty">Procurando o pedido…</p>`;
+  const o = await trackOrder(code);
+  if (o === undefined) {
+    trackResult.innerHTML = `<p class="track__empty">Não foi possível consultar agora. Tente de novo em instantes ou fale com a gente no <a href="https://wa.me/${STORE_WHATS}" target="_blank" rel="noopener">WhatsApp</a>.</p>`;
+    return;
+  }
   if (!o) {
     trackResult.innerHTML = `<p class="track__empty">Não encontramos nenhum pedido com o código <b>${esc(normCode(code))}</b>. Confira o código do pedido ou de rastreio ou fale com a gente no <a href="https://wa.me/${STORE_WHATS}" target="_blank" rel="noopener">WhatsApp</a>.</p>`;
     return;

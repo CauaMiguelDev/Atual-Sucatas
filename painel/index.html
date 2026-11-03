@@ -166,6 +166,13 @@
             <label class="field"><span>Endereço</span><input class="input" type="url" id="site-url" placeholder="https://www.atualsucatas.com.br/" required></label>
             <button class="btn btn--line" type="submit"><span class="btn__label" data-text="Salvar endereço"><span>Salvar endereço</span></span></button>
           </form>
+          <form class="cfg__card" id="sync-form">
+            <h2><i class="ph ph-arrows-clockwise"></i>Sincronização entre aparelhos</h2>
+            <p class="cfg__hint">Cole aqui a mesma <b>chave de sincronização</b> em cada aparelho (seu computador e o celular da loja). Assim os pedidos, notas e códigos de rastreio aparecem em todos e no rastreio do cliente. Sem a chave, os pedidos ficam só neste navegador.</p>
+            <label class="field"><span>Chave de sincronização</span><input class="input" type="password" id="sync-key" autocomplete="off" placeholder="A mesma chave em todos os aparelhos"></label>
+            <p class="cfg__hint" id="sync-status" role="status"></p>
+            <button class="btn btn--primary" type="submit"><span class="btn__label" data-text="Salvar chave"><span>Salvar chave</span></span></button>
+          </form>
           <div class="cfg__card">
             <h2><i class="ph ph-receipt"></i>Notas fiscais</h2>
             <p class="cfg__hint">Remove a nota fiscal de todos os pedidos. Os pedidos continuam e voltam para "a emitir". Não dá para desfazer.</p>
@@ -173,12 +180,12 @@
           </div>
           <div class="cfg__card">
             <h2><i class="ph ph-trash"></i>Limpar o painel</h2>
-            <p class="cfg__hint">Apaga <b>todos os pedidos</b> deste navegador. Use com cuidado: não dá para desfazer.</p>
+            <p class="cfg__hint">Apaga <b>todos os pedidos</b>. Com a sincronização ligada, apaga em <b>todos os aparelhos</b>. Use com cuidado: não dá para desfazer.</p>
             <button class="btn btn--line" type="button" id="reset-demo"><i class="ph ph-trash" aria-hidden="true"></i><span class="btn__label" data-text="Apagar todos os pedidos"><span>Apagar todos os pedidos</span></span></button>
           </div>
           <div class="cfg__card cfg__card--note">
-            <h2><i class="ph ph-info"></i>Sobre este protótipo</h2>
-            <p class="cfg__hint">Os pedidos e a senha ficam salvos só neste navegador. A senha impede o acesso casual a este computador, mas o login seguro de verdade, a emissão oficial da NF-e e o envio automático do PDF dependem de um servidor, que entra quando o dono aprovar.</p>
+            <h2><i class="ph ph-info"></i>Sobre o painel</h2>
+            <p class="cfg__hint">Com a chave de sincronização, os pedidos ficam guardados num lugar só e aparecem em todos os aparelhos. A senha impede o acesso casual a este computador, mas o login seguro de verdade, a emissão oficial da NF-e e o envio automático do PDF dependem de mais etapas no servidor.</p>
           </div>
         </div>
       </section>
@@ -292,8 +299,9 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="../compartilhado/orders.js?v=13"></script>
+  <script src="../compartilhado/sync-core.js?v=1"></script>
+  <script src="../compartilhado/orders.js?v=14"></script>
   <script src="admin-acesso.js?v=1"></script>
-  <script src="painel.js?v=39"></script>
+  <script src="painel.js?v=40"></script>
 </body>
 </html>

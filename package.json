@@ -1,0 +1,8 @@
+{
+  "name": "atual-sucatas",
+  "private": true,
+  "description": "Site estático + Netlify Functions para sincronizar pedidos entre aparelhos.",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}
