@@ -12,16 +12,27 @@
   <link href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@0,75..125,400..900;1,75..125,600..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
-  <link rel="stylesheet" href="../site/style.css?v=12">
-  <link rel="stylesheet" href="painel.css?v=29">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+  <link rel="stylesheet" href="../site/style.css?v=21">
+  <link rel="stylesheet" href="painel.css?v=37">
 </head>
 <body class="panel">
+
+  <!-- ===== PASSAGEM DO LOGIN PARA O PAINEL ===== -->
+  <div class="gate" id="gate" aria-hidden="true" hidden>
+    <img src="../assets/logo.png" alt="" width="120" height="120">
+    <span class="gate__bar"></span>
+  </div>
 
   <!-- ===== LOGIN ===== -->
   <section class="auth" id="auth">
     <form class="auth__card" id="auth-form" autocomplete="on">
-      <img src="../assets/logo.png" alt="" width="84" height="84" class="auth__logo">
+      <span class="logo-ring" data-ring><img src="../assets/logo.png" alt="" width="84" height="84" class="auth__logo"></span>
       <p class="wordmark"><span class="chrome">Atual</span> <span class="red">Sucatas</span></p>
+      <div class="auth__tabs" role="tablist" aria-label="Tipo de acesso">
+        <button type="button" role="tab" data-auth-tab="cliente" class="is-on" aria-selected="true"><i class="ph ph-storefront" aria-hidden="true"></i>Cliente</button>
+        <button type="button" role="tab" data-auth-tab="admin" aria-selected="false"><i class="ph ph-shield-check" aria-hidden="true"></i>Admin</button>
+      </div>
       <h1 class="auth__title" id="auth-title">Painel da loja</h1>
       <p class="auth__hint" id="auth-hint">Entre com seu usuário e senha.</p>
 
@@ -40,6 +51,10 @@
         <span>Confirme a senha</span>
         <input class="input" type="password" id="pw2" autocomplete="new-password">
       </label>
+      <label class="field" id="key-wrap" hidden>
+        <span>Chave de instalação</span>
+        <input class="input" type="password" id="inst-key" autocomplete="off">
+      </label>
       <p class="auth__error" id="auth-error" role="alert"></p>
       <button class="btn btn--primary btn--lg auth__submit" type="submit" id="auth-submit">
         <i class="ph ph-lock-key-open" aria-hidden="true"></i><span class="btn__label" data-text="Entrar"><span>Entrar</span></span>
@@ -53,39 +68,101 @@
   <!-- ===== APP ===== -->
   <div class="app" id="app" hidden>
     <aside class="side">
-      <a href="../site/" class="brand side__brand"><img src="../assets/logo.png" alt="" width="40" height="40"><span class="wordmark"><span class="chrome">Atual</span> <span class="red">Sucatas</span></span></a>
+      <a href="../site/" class="brand side__brand"><span class="logo-ring" data-ring><img src="../assets/logo.png" alt="" width="40" height="40"></span><span class="wordmark"><span class="chrome">Atual</span> <span class="red">Sucatas</span></span></a>
       <nav class="side__nav" aria-label="Painel">
-        <button type="button" data-view="pedidos" class="is-active"><i class="ph ph-package"></i>Pedidos</button>
+        <span class="side__ind" id="side-ind" aria-hidden="true"></span>
+        <p class="side__label">Dia a dia</p>
+        <button type="button" data-view="inicio" class="is-active"><i class="ph ph-house-simple"></i>Início</button>
+        <button type="button" data-view="pedidos"><i class="ph ph-package"></i>Pedidos</button>
         <button type="button" data-view="notas"><i class="ph ph-receipt"></i>Notas fiscais<span class="side__count" id="nf-count"></span></button>
+        <button type="button" data-view="entregas"><i class="ph ph-truck"></i>Entregas</button>
+        <button type="button" data-view="clientes"><i class="ph ph-users-three"></i>Clientes</button>
+        <button type="button" data-view="mensagens"><i class="ph ph-chat-circle-text"></i>Mensagens</button>
+        <p class="side__label">Ferramentas</p>
+        <button type="button" data-view="rastreio"><i class="ph ph-map-trifold"></i>Testar rastreio</button>
+        <button type="button" data-view="ajuda"><i class="ph ph-lifebuoy"></i>Como usar</button>
         <button type="button" data-view="config"><i class="ph ph-gear-six"></i>Configurações</button>
       </nav>
       <div class="side__foot">
+        <span class="sync-pill" id="sync-pill" title="Conexão com o site e o rastreio"><i></i><span></span></span>
         <a href="../site/" target="_blank" rel="noopener"><i class="ph ph-arrow-square-out"></i>Ver site</a>
         <button type="button" id="logout"><i class="ph ph-sign-out"></i>Sair</button>
       </div>
     </aside>
 
     <main class="main">
-      <header class="main__head">
+      <span class="read-bar" aria-hidden="true"></span>
+      <header class="main__head" id="main-head">
         <div>
           <h1 id="view-title">Pedidos</h1>
           <p id="view-sub">Acompanhe pedidos, entregas e notas fiscais.</p>
         </div>
-        <button class="btn btn--primary" type="button" id="new-order">
+        <button class="btn btn--primary" type="button" id="new-order" data-new>
           <i class="ph ph-plus" aria-hidden="true"></i>
           <span class="btn__label" data-text="Novo pedido"><span>Novo pedido</span></span>
         </button>
       </header>
 
+      <!-- INÍCIO -->
+      <section class="view" data-view-panel="inicio" hidden>
+        <header class="home-head">
+          <div>
+            <h1 class="home-head__title" id="greet">Olá!</h1>
+            <p class="home-head__day"><span id="today"></span> · <span id="brief"></span></p>
+          </div>
+          <button class="btn btn--primary" type="button" data-new><i class="ph ph-plus" aria-hidden="true"></i><span class="btn__label" data-text="Novo pedido"><span>Novo pedido</span></span></button>
+        </header>
+
+        <section class="card todo" aria-labelledby="h-todo">
+          <h2 class="card__h" id="h-todo">O que fazer agora</h2>
+          <div id="todo"></div>
+        </section>
+
+        <div class="kpis" id="home-kpis">
+          <div class="kpi kpi--red tilt"><span><i class="ph ph-currency-circle-dollar"></i>Vendido no mês</span><strong id="k-fat">R$ 0,00</strong><small id="k-delta">&nbsp;</small></div>
+          <div class="kpi tilt"><span><i class="ph ph-package"></i>Pedidos no mês</span><strong id="k-ped">0</strong><small>criados neste mês</small></div>
+          <div class="kpi tilt"><span><i class="ph ph-truck"></i>A caminho</span><strong id="k-way">0</strong><small>já saíram da loja</small></div>
+          <div class="kpi tilt"><span><i class="ph ph-flag-checkered"></i>Entregues</span><strong id="k-done">0</strong><small>no total</small></div>
+        </div>
+
+        <section class="card rv" aria-labelledby="h-pipe">
+          <h2 class="card__h" id="h-pipe">Onde estão os pedidos agora</h2>
+          <ol class="pipe" id="pipe"></ol>
+        </section>
+
+        <div class="two">
+          <section class="card rv" aria-labelledby="h-chart">
+            <h2 class="card__h" id="h-chart">Vendas dos últimos 6 meses</h2>
+            <div class="chart" id="chart"></div>
+          </section>
+          <section class="card rv" aria-labelledby="h-att">
+            <h2 class="card__h" id="h-att">Precisa de atenção</h2>
+            <p class="card__hint">Pedidos sem atualização há mais de 2 dias</p>
+            <div id="attention"></div>
+          </section>
+        </div>
+        <div class="two">
+          <section class="card rv" aria-labelledby="h-recent">
+            <div class="card__top"><h2 class="card__h" id="h-recent">Últimos pedidos</h2><button class="link-btn" type="button" data-go-view="pedidos">Ver todos</button></div>
+            <div id="recent"></div>
+          </section>
+          <section class="card rv" aria-labelledby="h-top">
+            <h2 class="card__h" id="h-top">Peças mais vendidas</h2>
+            <p class="card__hint">Por quantidade, em todos os pedidos</p>
+            <div id="top-parts"></div>
+          </section>
+        </div>
+      </section>
+
       <!-- PEDIDOS -->
-      <section class="view" data-view-panel="pedidos">
+      <section class="view" data-view-panel="pedidos" hidden>
         <details class="guide" id="guide" open>
           <summary><i class="ph ph-lightbulb" aria-hidden="true"></i>Como atender um pedido pelo painel<i class="ph ph-caret-down guide__caret" aria-hidden="true"></i></summary>
           <ol class="guide__steps">
             <li><span class="ico ico--sm"><i class="ph-duotone ph-plus-circle" aria-hidden="true"></i></span><div><strong>Cadastre o pedido</strong><small>Clique em <b>Novo pedido</b> e preencha cliente, peças, frete e forma de pagamento.</small></div></li>
             <li><span class="ico ico--sm"><i class="ph-duotone ph-chat-circle-text" aria-hidden="true"></i></span><div><strong>Confirme no WhatsApp</strong><small>Envie a confirmação com peças, valores, entrega e link de rastreio. A <b>nota do pedido</b> em PDF vai junto se você quiser.</small></div></li>
-            <li><span class="ico ico--sm"><i class="ph-duotone ph-receipt" aria-hidden="true"></i></span><div><strong>Emita e envie a nota fiscal</strong><small>Na aba <b>Notas</b>, siga os 4 passos: conferir cliente, conferir peças, gerar o PDF e enviar.</small></div></li>
-            <li><span class="ico ico--sm"><i class="ph-duotone ph-truck" aria-hidden="true"></i></span><div><strong>Atualize a entrega</strong><small>Mude a situação e informe o rastreio. A cada etapa, envie o aviso pronto para o cliente.</small></div></li>
+            <li><span class="ico ico--sm"><i class="ph-duotone ph-receipt" aria-hidden="true"></i></span><div><strong>Emita e envie a nota fiscal</strong><small>Na aba <b>Notas</b>, confira o resumo, gere o PDF e envie. O código de rastreio já vai junto.</small></div></li>
+            <li><span class="ico ico--sm"><i class="ph-duotone ph-truck" aria-hidden="true"></i></span><div><strong>Atualize a entrega</strong><small>Em <b>Entregas</b>, use <b>Mudar rota</b>: etapa, cidade e transportadora num lugar só, com o aviso pronto para o cliente.</small></div></li>
           </ol>
           <p class="guide__foot"><i class="ph ph-arrow-circle-right" aria-hidden="true"></i> Dentro de cada pedido, a faixa <b>Próximo passo</b> mostra o que falta fazer com aquele cliente.</p>
         </details>
@@ -113,6 +190,16 @@
 
       <!-- NOTAS -->
       <section class="view" data-view-panel="notas" hidden>
+        <section class="card nf-q" aria-labelledby="h-q">
+          <div class="card__top"><h2 class="card__h" id="h-q">Notas para fazer agora</h2><span class="card__hint" id="q-count"></span></div>
+          <ol class="nf-how">
+            <li><b>1</b>Escolha o pedido</li>
+            <li><b>2</b>Confira os dados</li>
+            <li><b>3</b>Gere a nota e envie</li>
+          </ol>
+          <div id="nf-queue"></div>
+        </section>
+        <h2 class="card__h nf-h">Notas já emitidas</h2>
         <div class="nf-bar">
           <label class="field nf-month"><span>Mês de emissão</span><select class="input select" id="nf-month"></select></label>
           <div class="chips" id="nf-chips" role="group" aria-label="Filtrar notas">
@@ -129,6 +216,117 @@
             <tbody id="nf-rows"></tbody>
           </table>
           <p class="empty" id="nf-empty" hidden><i class="ph ph-receipt"></i><span id="nf-empty-text">Nenhuma nota neste mês.</span></p>
+        </div>
+      </section>
+
+      <!-- ENTREGAS -->
+      <section class="view" data-view-panel="entregas" hidden>
+        <div class="toolbar toolbar--flush">
+          <div class="chips" id="ship-chips" role="group" aria-label="Filtrar entregas">
+            <button type="button" data-ship-f="open" class="is-active">A caminho</button>
+            <button type="button" data-ship-f="done">Entregues</button>
+            <button type="button" data-ship-f="all">Todos</button>
+          </div>
+        </div>
+        <div class="ships" id="ships"></div>
+      </section>
+
+      <!-- CLIENTES -->
+      <section class="view" data-view-panel="clientes" hidden>
+        <div class="toolbar toolbar--flush">
+          <label class="search">
+            <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+            <span class="sr-only">Buscar cliente</span>
+            <input type="search" id="q-cli" placeholder="Buscar por nome, cidade ou CPF/CNPJ">
+          </label>
+        </div>
+        <div class="table-wrap">
+          <table class="orders">
+            <thead><tr><th>Cliente</th><th>CPF/CNPJ</th><th>Cidade</th><th>Pedidos</th><th>Total</th><th>Última compra</th><th><span class="sr-only">WhatsApp</span></th></tr></thead>
+            <tbody id="cli-rows"></tbody>
+          </table>
+          <p class="empty" id="cli-empty" hidden><i class="ph ph-users-three"></i><span id="cli-empty-text"></span></p>
+        </div>
+      </section>
+
+      <!-- MENSAGENS -->
+      <section class="view" data-view-panel="mensagens" hidden>
+        <div class="mc">
+          <div class="card mc__side">
+            <label class="field"><span>Pedido</span><select class="input select" id="mc-order"></select></label>
+            <div class="mc__list" id="mc-list"></div>
+          </div>
+          <div class="card mc__prev">
+            <h2 class="card__h">Como o cliente vai receber</h2>
+            <div class="wa"><div class="wa__bubble" id="mc-bubble"></div></div>
+            <div class="wa__actions">
+              <button class="btn btn--whats" type="button" id="mc-send"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i><span class="btn__label" data-text="Enviar no WhatsApp"><span>Enviar no WhatsApp</span></span></button>
+              <button class="btn btn--line" type="button" id="mc-copy"><i class="ph ph-copy" aria-hidden="true"></i><span class="btn__label" data-text="Copiar texto"><span>Copiar texto</span></span></button>
+              <button class="btn btn--line" type="button" id="mc-open"><i class="ph ph-package" aria-hidden="true"></i><span class="btn__label" data-text="Abrir pedido"><span>Abrir pedido</span></span></button>
+            </div>
+          </div>
+        </div>
+        <div class="two">
+          <section class="card" aria-labelledby="h-mc-log"><h2 class="card__h" id="h-mc-log">Últimas mensagens enviadas</h2><div id="mc-log"></div></section>
+          <section class="card" aria-labelledby="h-mc-site"><h2 class="card__h" id="h-mc-site">O que chega do site</h2><p class="card__hint">Quando o cliente toca nos botões do site, a mensagem já vem assim.</p><div id="mc-site"></div></section>
+        </div>
+      </section>
+
+      <!-- TESTAR RASTREIO -->
+      <section class="view" data-view-panel="rastreio" hidden>
+        <div class="tester">
+          <div class="tester__side">
+            <div class="card tester__form">
+              <label class="field"><span>Escolha um pedido</span><select class="input select" id="t-sel"></select></label>
+              <p class="tester__or">ou</p>
+              <label class="field"><span>Digite um código</span><input class="input" id="t-code" placeholder="Ex.: AS-1024 ou ATS7K2M9QXB" autocomplete="off" spellcheck="false"></label>
+              <button class="btn btn--primary" type="button" id="t-go"><i class="ph ph-play" aria-hidden="true"></i><span class="btn__label" data-text="Testar"><span>Testar</span></span></button>
+            </div>
+            <div class="card tlink">
+              <h2 class="card__h">Link do cliente</h2>
+              <p class="card__hint">É este link que vai nas mensagens. Ele funciona em qualquer celular.</p>
+              <code class="tlink__url" id="t-url"></code>
+              <div class="tlink__acts">
+                <button class="btn btn--line btn--sm" type="button" id="t-copy"><i class="ph ph-copy" aria-hidden="true"></i><span class="btn__label" data-text="Copiar"><span>Copiar</span></span></button>
+                <a class="btn btn--line btn--sm" id="t-open" target="_blank" rel="noopener"><i class="ph ph-arrow-square-out" aria-hidden="true"></i><span class="btn__label" data-text="Abrir"><span>Abrir</span></span></a>
+                <a class="btn btn--whats btn--sm" id="t-wa" target="_blank" rel="noopener" hidden><i class="ph ph-whatsapp-logo" aria-hidden="true"></i><span class="btn__label" data-text="Mandar"><span>Mandar</span></span></a>
+              </div>
+            </div>
+          </div>
+          <div class="phone-stage" id="phone-stage">
+            <div class="phone" id="phone" aria-label="Prévia no celular">
+              <span class="phone__btn phone__btn--a"></span><span class="phone__btn phone__btn--b"></span><span class="phone__btn phone__btn--c"></span>
+              <div class="phone__screen">
+                <div class="phone__status"><span id="ph-clock">00:00</span><span class="phone__island"><i></i></span><span class="phone__sig"><i class="ph-fill ph-cell-signal-full"></i><i class="ph-fill ph-wifi-high"></i><i class="ph-fill ph-battery-high"></i></span></div>
+                <div class="phone__bar"><i class="ph-fill ph-lock-simple" aria-hidden="true"></i><span id="ph-url"></span><button type="button" id="t-reload" aria-label="Recarregar"><i class="ph ph-arrow-clockwise"></i></button></div>
+                <div class="phone__view">
+                  <iframe id="t-frame" title="Rastreio como o cliente vê" src="about:blank"></iframe>
+                  <div class="phone__load" aria-hidden="true"><img src="../assets/logo.png" alt="" width="72" height="72"><span class="phone__ring"></span><p>Abrindo o rastreio</p><span class="phone__scan"></span></div>
+                </div>
+                <span class="phone__home"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- COMO USAR -->
+      <section class="view" data-view-panel="ajuda" hidden>
+        <div class="howto">
+          <article class="how rv"><div><h2>Cadastrar um pedido</h2><ol><li>Clique em <b>Novo pedido</b>.</li><li>Digite o CEP: rua, bairro e cidade aparecem sozinhos.</li><li>Adicione as peças, o frete e a forma de pagamento.</li><li>Clique em <b>Salvar pedido</b>.</li></ol><button class="link-btn" type="button" data-new>Criar um pedido</button></div></article>
+          <article class="how rv"><div><h2>Confirmar no WhatsApp</h2><ol><li>Abra o pedido e vá na aba <b>Mensagens</b>.</li><li>Escolha <b>Confirmação do pedido</b>.</li><li>A conversa abre com o texto pronto e o link de rastreio.</li></ol><button class="link-btn" type="button" data-go-view="pedidos">Ir para Pedidos</button></div></article>
+          <article class="how rv"><div><h2>Emitir a nota fiscal</h2><ol><li>Abra o pedido e vá na aba <b>Notas</b>.</li><li>A faixa de cima diz o que falta ou o que fazer agora.</li><li>Clique em <b>Gerar nota fiscal</b>, confira o PDF e envie.</li></ol><button class="link-btn" type="button" data-go-view="notas">Ir para Notas fiscais</button></div></article>
+          <article class="how rv"><div><h2>Atualizar a entrega</h2><ol><li>Em <b>Entregas</b>, clique em <b>Mudar rota</b>.</li><li>Escolha a etapa, a cidade da parada e quem leva.</li><li>Salve: o cliente vê no rastreio e recebe o aviso.</li></ol><button class="link-btn" type="button" data-go-view="entregas">Ir para Entregas</button></div></article>
+          <article class="how rv"><div><h2>Conferir o rastreio</h2><ol><li>Abra <b>Testar rastreio</b>.</li><li>Escolha o pedido e clique em <b>Testar</b>.</li><li>Você vê a tela igual ao celular do cliente.</li></ol><button class="link-btn" type="button" data-go-view="rastreio">Ir para Testar rastreio</button></div></article>
+          <article class="how rv"><div><h2>Fazer backup</h2><ol><li>Abra <b>Configurações</b>.</li><li>Clique em <b>Baixar backup</b> e guarde o arquivo.</li><li>Em outro aparelho, use <b>Restaurar backup</b>.</li></ol><button class="link-btn" type="button" data-go-view="config">Ir para Configurações</button></div></article>
+        </div>
+        <div class="card know rv">
+          <h2 class="card__h">Bom saber</h2>
+          <ul>
+            <li><i class="ph-fill ph-warning-circle" aria-hidden="true"></i><span><b>A nota ainda é uma prévia sem valor fiscal.</b> A nota oficial, com chave de acesso e protocolo, sai pelo emissor fiscal da loja.</span></li>
+            <li><i class="ph-fill ph-arrows-clockwise" aria-hidden="true"></i><span><b>Confira a bolinha no menu.</b> Verde quer dizer conectado ao site: o que você salva aparece na hora em todos os aparelhos e no rastreio do cliente.</span></li>
+            <li><i class="ph-fill ph-lock-key" aria-hidden="true"></i><span><b>Clique em Sair ao terminar.</b> Depois de 30 minutos sem uso, o painel bloqueia sozinho.</span></li>
+          </ul>
         </div>
       </section>
 
@@ -152,14 +350,6 @@
             <label class="field"><span>CNPJ</span><input class="input" type="text" id="store-cnpj" inputmode="numeric" placeholder="00.000.000/0000-00"></label>
             <button class="btn btn--line" type="submit"><span class="btn__label" data-text="Salvar dados"><span>Salvar dados</span></span></button>
           </form>
-          <form class="cfg__card" id="admin-form">
-            <h2><i class="ph ph-shield-check"></i>Área do administrador</h2>
-            <p class="cfg__hint">Só para o administrador do site: números de notas, mensagens e pedidos. A loja não precisa desta área.</p>
-            <input type="text" name="username" value="admin" autocomplete="username" hidden>
-            <label class="field"><span>Senha do administrador</span><input class="input" type="password" id="admin-pw" autocomplete="current-password" required></label>
-            <p class="auth__error cfg__error" id="admin-error" role="alert"></p>
-            <button class="btn btn--primary" type="submit" id="admin-submit"><i class="ph ph-sign-in" aria-hidden="true"></i><span class="btn__label" data-text="Entrar como administrador"><span>Entrar como administrador</span></span></button>
-          </form>
           <form class="cfg__card" id="site-form">
             <h2><i class="ph ph-link"></i>Endereço do site</h2>
             <p class="cfg__hint">Usado no link de acompanhamento que vai nas mensagens para o cliente. Troque pelo domínio quando o site for publicado.</p>
@@ -174,13 +364,31 @@
             <button class="btn btn--primary" type="submit"><span class="btn__label" data-text="Salvar chave"><span>Salvar chave</span></span></button>
           </form>
           <div class="cfg__card">
+            <h2><i class="ph ph-archive"></i>Catálogo de notas</h2>
+            <p class="cfg__hint">Toda nota emitida fica guardada no catalog.json, no servidor. Ele só acumula: apagar nota, apagar pedido ou trocar o site não tira nada dele.</p>
+            <p class="cfg__hint" id="nf-cat-status" role="status"></p>
+            <div class="cfg__row">
+              <button class="btn btn--primary" type="button" id="nf-cat-dl"><i class="ph ph-download-simple" aria-hidden="true"></i><span class="btn__label" data-text="Baixar catalog.json"><span>Baixar catalog.json</span></span></button>
+              <button class="btn btn--line" type="button" id="nf-cat-back"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i><span class="btn__label" data-text="Recuperar notas"><span>Recuperar notas</span></span></button>
+            </div>
+          </div>
+          <div class="cfg__card">
+            <h2><i class="ph ph-floppy-disk"></i>Backup</h2>
+            <p class="cfg__hint">Baixe uma cópia de todos os pedidos e notas. Serve também para levar os pedidos de um endereço para outro: baixe no antigo e restaure no novo.</p>
+            <div class="cfg__row">
+              <button class="btn btn--primary" type="button" id="backup-dl"><i class="ph ph-download-simple" aria-hidden="true"></i><span class="btn__label" data-text="Baixar backup"><span>Baixar backup</span></span></button>
+              <label class="btn btn--line" for="backup-file"><i class="ph ph-upload-simple" aria-hidden="true"></i><span class="btn__label" data-text="Restaurar backup"><span>Restaurar backup</span></span></label>
+              <input type="file" id="backup-file" accept="application/json" hidden>
+            </div>
+          </div>
+          <div class="cfg__card">
             <h2><i class="ph ph-receipt"></i>Notas fiscais</h2>
-            <p class="cfg__hint">Remove a nota fiscal de todos os pedidos. Os pedidos continuam e voltam para "a emitir". Não dá para desfazer.</p>
+            <p class="cfg__hint">Tira a nota fiscal de todos os pedidos, que voltam para "a emitir". As notas continuam no catálogo e podem ser recuperadas.</p>
             <button class="btn btn--line" type="button" id="clear-nf"><i class="ph ph-trash" aria-hidden="true"></i><span class="btn__label" data-text="Apagar todas as notas"><span>Apagar todas as notas</span></span></button>
           </div>
           <div class="cfg__card">
             <h2><i class="ph ph-trash"></i>Limpar o painel</h2>
-            <p class="cfg__hint">Apaga <b>todos os pedidos</b>. Com a sincronização ligada, apaga em <b>todos os aparelhos</b>. Use com cuidado: não dá para desfazer.</p>
+            <p class="cfg__hint">Apaga <b>todos os pedidos</b>. Com a sincronização ligada, apaga em <b>todos os aparelhos</b>. Pedidos sem nota não voltam; os que têm nota continuam no catálogo.</p>
             <button class="btn btn--line" type="button" id="reset-demo"><i class="ph ph-trash" aria-hidden="true"></i><span class="btn__label" data-text="Apagar todos os pedidos"><span>Apagar todos os pedidos</span></span></button>
           </div>
           <div class="cfg__card cfg__card--note">
@@ -214,15 +422,31 @@
 
       <div class="drawer__body">
         <section class="tab" data-tab-panel="cliente">
-          <div class="grid2">
-            <label class="field span2"><span>Nome completo *</span><input class="input" name="nome" required></label>
-            <label class="field"><span>WhatsApp com DDD *</span><input class="input" name="whatsapp" inputmode="tel" placeholder="(49) 9 9999-9999" required></label>
-            <label class="field"><span>CPF ou CNPJ</span><input class="input" name="doc" placeholder="Para a nota fiscal" inputmode="numeric"><small class="field-err" id="doc-err" role="status"></small></label>
-            <label class="field span2"><span>Endereço (rua e número)</span><input class="input" name="endereco" placeholder="Para a nota fiscal"></label>
-            <label class="field"><span>Bairro</span><input class="input" name="bairro"></label>
-            <label class="field"><span>CEP</span><input class="input" name="cep" inputmode="numeric" placeholder="00000-000"><small class="field-err" id="cep-err" role="status"></small></label>
-            <label class="field span2"><span>Cidade - UF *</span><input class="input" name="cidade" placeholder="Ex.: Sorocaba - SP" required></label>
-          </div>
+          <div class="cli-hit" id="cli-hit" hidden></div>
+          <fieldset class="fset">
+            <legend><i class="ph ph-whatsapp-logo" aria-hidden="true"></i>Contato</legend>
+            <div class="grid2">
+              <label class="field"><span>WhatsApp com DDD <em>obrigatório</em></span><input class="input" name="whatsapp" inputmode="tel" autocomplete="off" placeholder="(49) 9 9999-9999" required><small class="field-err" id="wa-err" role="status"></small></label>
+              <label class="field"><span>Nome completo <em>obrigatório</em></span><input class="input" name="nome" autocomplete="off" placeholder="Como vai sair na nota" required></label>
+            </div>
+          </fieldset>
+          <fieldset class="fset">
+            <legend><i class="ph ph-identification-card" aria-hidden="true"></i>Documento</legend>
+            <label class="field"><span>CPF ou CNPJ <em class="is-nf">para a nota</em></span><input class="input" name="doc" placeholder="Só os números" inputmode="numeric" autocomplete="off"><small class="field-err" id="doc-err" role="status"></small></label>
+          </fieldset>
+          <fieldset class="fset">
+            <legend><i class="ph ph-map-pin" aria-hidden="true"></i>Endereço de entrega</legend>
+            <p class="fset__hint">Digite o CEP primeiro: rua, bairro e cidade aparecem sozinhos.</p>
+            <div class="grid-addr">
+              <label class="field"><span>CEP <em class="is-nf">para a nota</em></span><input class="input" name="cep" inputmode="numeric" placeholder="00000-000" autocomplete="off"><small class="field-err" id="cep-err" role="status"></small></label>
+              <label class="field"><span>Cidade - UF <em>obrigatório</em></span><input class="input" name="cidade" placeholder="Ex.: Sorocaba - SP" autocomplete="off" required></label>
+              <label class="field span-rua"><span>Rua <em class="is-nf">para a nota</em></span><input class="input" name="endereco" autocomplete="off"></label>
+              <label class="field"><span>Número</span><input class="input" name="numero" autocomplete="off"></label>
+              <label class="field"><span>Bairro <em class="is-nf">para a nota</em></span><input class="input" name="bairro" autocomplete="off"></label>
+            </div>
+          </fieldset>
+          <p class="cli-left" id="cli-left" role="status"></p>
+          <div class="tab-go"><button class="btn btn--primary" type="button" data-tab-go="pecas"><span class="btn__label" data-text="Continuar para peças"><span>Continuar para peças</span></span><i class="ph ph-arrow-right" aria-hidden="true"></i></button></div>
         </section>
 
         <section class="tab" data-tab-panel="pecas" hidden>
@@ -234,9 +458,11 @@
             <div class="totals__sum"><span>Total do pedido</span><strong id="d-total">R$ 0,00</strong></div>
           </div>
           <label class="field obs"><span>Observações</span><textarea class="input" name="obs" rows="3" placeholder="Ex.: embalar o retrovisor separado. Sai na nota do pedido e na nota fiscal."></textarea></label>
+          <div class="tab-go"><button class="btn btn--primary" type="button" data-tab-go="entrega"><span class="btn__label" data-text="Continuar para entrega"><span>Continuar para entrega</span></span><i class="ph ph-arrow-right" aria-hidden="true"></i></button></div>
         </section>
 
         <section class="tab" data-tab-panel="entrega" hidden>
+          <div class="tab-top"><button class="btn btn--line btn--sm" type="button" id="d-route"><i class="ph ph-path" aria-hidden="true"></i><span class="btn__label" data-text="Mudar rota"><span>Mudar rota</span></span></button></div>
           <div class="grid2">
             <label class="field"><span>Situação</span><select class="input select" name="status" id="d-status"></select></label>
             <label class="field"><span>Previsão de entrega</span><input class="input" name="previsao" type="date"></label>
@@ -254,7 +480,7 @@
         </section>
 
         <section class="tab" data-tab-panel="nota" hidden>
-          <h3 class="sub sub--first">Nota fiscal, passo a passo</h3>
+          <h3 class="sub sub--first">Nota fiscal</h3>
           <div class="wiz" id="nf-wiz"></div>
           <h3 class="sub">Nota do pedido</h3>
           <div class="doc-card" id="order-doc"></div>
@@ -265,6 +491,8 @@
             <button type="button" data-tpl="criado" class="is-active"><i class="ph ph-check-circle"></i>Confirmação do pedido</button>
             <button type="button" data-tpl="status"><i class="ph ph-truck"></i>Atualização de entrega</button>
             <button type="button" data-tpl="nota"><i class="ph ph-receipt"></i>Nota fiscal</button>
+            <button type="button" data-tpl="retirada"><i class="ph ph-storefront"></i>Pronto para retirada</button>
+            <button type="button" data-tpl="dados"><i class="ph ph-identification-card"></i>Pedir dados para a nota</button>
           </div>
           <div class="wa">
             <div class="wa__bubble" id="wa-preview"></div>
@@ -287,6 +515,44 @@
     </form>
   </dialog>
 
+  <!-- ===== MUDAR ROTA ===== -->
+  <dialog class="route-dlg" id="route-dlg" aria-labelledby="rt-title">
+    <form id="route-form" novalidate>
+      <header class="route-dlg__head">
+        <div><h2 id="rt-title">Mudar rota</h2><p id="rt-sub"></p></div>
+        <button class="track__close" type="button" data-close aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
+      </header>
+      <div class="route-dlg__body">
+        <div class="rt-path" id="rt-path"></div>
+        <fieldset class="fset">
+          <legend><i class="ph ph-signpost" aria-hidden="true"></i>Em que etapa o pedido está?</legend>
+          <div class="rt-steps" id="rt-steps"></div>
+        </fieldset>
+        <fieldset class="fset">
+          <legend><i class="ph ph-map-pin" aria-hidden="true"></i>Onde está agora?</legend>
+          <div class="grid2">
+            <label class="field"><span>Cidade da parada</span><input class="input" id="rt-local" placeholder="Ex.: Curitiba - PR" autocomplete="off"></label>
+            <label class="field"><span>Previsão de entrega</span><input class="input" id="rt-prev" type="date"></label>
+            <label class="field span2"><span>Recado para o cliente <small>(opcional)</small></span><input class="input" id="rt-obs" placeholder="Ex.: saiu no caminhão da tarde" autocomplete="off"></label>
+          </div>
+        </fieldset>
+        <fieldset class="fset">
+          <legend><i class="ph ph-truck" aria-hidden="true"></i>Quem leva?</legend>
+          <div class="rt-carriers" id="rt-carriers"><button type="button">Correios</button><button type="button">Transportadora</button><button type="button">Retirada na loja</button></div>
+          <div class="grid2">
+            <label class="field"><span>Nome da transportadora</span><input class="input" id="rt-transp" placeholder="Ex.: Jadlog" autocomplete="off"></label>
+            <label class="field"><span>Código da transportadora <small>(opcional)</small></span><input class="input" id="rt-code" autocomplete="off"></label>
+          </div>
+        </fieldset>
+      </div>
+      <footer class="route-dlg__foot">
+        <label class="rt-check"><input type="checkbox" id="rt-avisar" checked><span>Avisar o cliente no WhatsApp</span></label>
+        <button class="btn btn--line" type="button" data-close><span class="btn__label" data-text="Cancelar"><span>Cancelar</span></span></button>
+        <button class="btn btn--primary" type="submit"><i class="ph ph-check" aria-hidden="true"></i><span class="btn__label" data-text="Salvar rota"><span>Salvar rota</span></span></button>
+      </footer>
+    </form>
+  </dialog>
+
   <!-- NF PREVIEW -->
   <dialog class="nf-dialog" id="nf-dialog" aria-label="Documento em PDF">
     <iframe class="nf-frame" id="nf-frame" title="Documento em PDF"></iframe>
@@ -299,9 +565,13 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="../compartilhado/sync-core.js?v=1"></script>
-  <script src="../compartilhado/orders.js?v=14"></script>
-  <script src="admin-acesso.js?v=1"></script>
-  <script src="painel.js?v=40"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  <script src="../compartilhado/sync-core.js?v=2"></script>
+  <script src="../compartilhado/orders.js?v=18"></script>
+  <script src="../compartilhado/fundo.js?v=7"></script>
+  <script src="admin-acesso.js?v=3"></script>
+  <script src="mensagens.js?v=3"></script>
+  <script src="painel.js?v=55"></script>
 </body>
 </html>

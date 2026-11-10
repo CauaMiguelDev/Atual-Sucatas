@@ -1,0 +1,46 @@
+# Atual Sucatas: configuração do servidor (Hostinger)
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Sempre https: o login do painel e o compartilhar do celular só funcionam em endereço seguro
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+  # A raiz abre o site da loja
+  RewriteRule ^$ site/ [L,R=302]
+</IfModule>
+
+Options -Indexes
+
+# pacotes, backups e anotações esquecidos na pasta do site nunca podem ser baixados
+<FilesMatch "\.(zip|tar|gz|tgz|rar|7z|bak|sql|log|txt\.bak)$">
+  Require all denied
+</FilesMatch>
+<FilesMatch "^(CHAVE|config|admin-senha|loja-acesso)">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript text/javascript application/json image/svg+xml
+</IfModule>
+
+# Arquivos com ?v= no endereço ficam guardados; as páginas sempre buscam a versão nova
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/javascript "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>

@@ -11,35 +11,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@0,75..125,400..900;1,75..125,600..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
-  <link rel="stylesheet" href="../site/style.css?v=12">
-  <link rel="stylesheet" href="painel.css?v=29">
+  <link rel="stylesheet" href="../site/style.css?v=21">
+  <link rel="stylesheet" href="painel.css?v=37">
 </head>
 <body class="panel">
-
-  <!-- ===== LOGIN (only the site's administrator) ===== -->
-  <section class="auth" id="auth">
-    <form class="auth__card" id="auth-form" autocomplete="on">
-      <img src="../assets/logo.png" alt="" width="84" height="84" class="auth__logo">
-      <p class="wordmark"><span class="chrome">Atual</span> <span class="red">Sucatas</span></p>
-      <h1 class="auth__title" id="auth-title">Área do administrador</h1>
-      <p class="auth__hint" id="auth-hint">Acesso restrito ao administrador do site.</p>
-
-      <input type="text" name="username" value="admin" autocomplete="username" hidden>
-      <label class="field">
-        <span>Senha do administrador</span>
-        <span class="field__pw">
-          <input class="input" type="password" id="pw" autocomplete="current-password" required>
-          <button type="button" class="field__eye" data-eye="pw" aria-label="Mostrar senha"><i class="ph ph-eye"></i></button>
-        </span>
-      </label>
-      <p class="auth__error" id="auth-error" role="alert"></p>
-
-      <button class="btn btn--primary btn--lg auth__submit" type="submit" id="auth-submit">
-        <i class="ph ph-shield-check" aria-hidden="true"></i><span class="btn__label" data-text="Entrar"><span>Entrar</span></span>
-      </button>
-      <a class="auth__back" href="./"><i class="ph ph-arrow-left" aria-hidden="true"></i> Voltar para o painel</a>
-    </form>
-  </section>
 
   <!-- ===== ADMIN ===== -->
   <div class="adm" id="app" hidden>
@@ -100,9 +75,10 @@
     </main>
   </div>
 
-  <script src="../compartilhado/sync-core.js?v=1"></script>
-  <script src="../compartilhado/orders.js?v=14"></script>
-  <script src="admin-acesso.js?v=1"></script>
-  <script src="admin.js?v=5"></script>
+  <script src="../compartilhado/sync-core.js?v=2"></script>
+  <script src="../compartilhado/orders.js?v=18"></script>
+  <script src="../compartilhado/fundo.js?v=7"></script>
+  <script src="admin-acesso.js?v=3"></script>
+  <script src="admin.js?v=8"></script>
 </body>
 </html>

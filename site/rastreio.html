@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rastrear pedido | Atual Sucatas</title>
+  <meta name="description" content="Acompanhe a entrega da sua peça da Atual Sucatas, do pátio em Chapecó até a sua porta.">
+  <meta name="theme-color" content="#0c0c0e">
+  <link rel="icon" href="../assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Saira:ital,wdth,wght@0,75..125,400..900;1,75..125,600..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+  <link rel="stylesheet" href="style.css?v=21">
+  <link rel="stylesheet" href="rastreio.css?v=5">
+</head>
+<body class="rastreio">
+  <a class="sr-only" href="#conteudo">Pular para o conteúdo</a>
+
+  <span id="top-sentinel" aria-hidden="true"></span>
+  <span id="spot" hidden></span>
+  <div class="amb" aria-hidden="true"><i></i><i></i></div>
+
+  <header class="nav" id="nav">
+    <span class="nav__progress" aria-hidden="true"></span>
+    <div class="wrap nav__bar">
+      <a href="index.html" class="brand" aria-label="Atual Sucatas, início">
+        <img src="../assets/logo.png" alt="" width="46" height="46">
+        <span class="wordmark"><span class="chrome">Atual</span> <span class="red">Sucatas</span></span>
+      </a>
+      <nav class="nav__links" aria-label="Principal">
+        <a href="index.html#procedencia">Procedência</a>
+        <a href="index.html#pecas">Peças</a>
+        <a href="index.html#patio">Pátio</a>
+        <a href="index.html#comprar">Como comprar</a>
+        <a href="index.html#contato">Contato</a>
+      </nav>
+      <a class="btn btn--primary btn--sm nav__cta" href="https://wa.me/5549991041665?text=Ol%C3%A1%2C%20Atual%20Sucatas%21%20Quero%20saber%20do%20meu%20pedido.%0A%0AC%C3%B3digo%20do%20pedido%3A%20" target="_blank" rel="noopener">
+        <i class="ph ph-whatsapp-logo" aria-hidden="true"></i>
+        <span class="btn__label" data-text="Falar com a loja"><span>Falar com a loja</span></span>
+      </a>
+      <button class="nav__icon nav__burger" id="burger" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><span></span><span></span></button>
+    </div>
+    <nav class="menu wrap" id="menu" aria-label="Menu móvel" hidden>
+      <a href="index.html#procedencia">Procedência</a>
+      <a href="index.html#pecas">Peças</a>
+      <a href="index.html#patio">Pátio</a>
+      <a href="index.html#comprar">Como comprar</a>
+      <a href="index.html#contato">Contato</a>
+    </nav>
+  </header>
+
+  <main id="conteudo">
+    <!-- BUSCA -->
+    <section class="t-hero wrap">
+      <div class="t-hero__copy">
+        <h1 class="t-title" id="t-title" aria-label="Onde está a sua peça?">
+          <span class="t-line" aria-hidden="true"><span class="chrome">Onde está a sua</span></span>
+          <span class="t-line t-line--word" aria-hidden="true"><span><em class="t-rot" id="t-rot">peça?</em></span></span>
+        </h1>
+        <p class="lead t-in">Digite o código do pedido ou o código de rastreio que você recebeu no WhatsApp. A gente mostra cada etapa, do pátio em Chapecó até a sua porta.</p>
+        <form class="t-form t-in" id="t-form" novalidate>
+          <label for="code" class="sr-only">Código do pedido ou de rastreio</label>
+          <i class="ph ph-barcode" aria-hidden="true"></i>
+          <input id="code" class="input" name="pedido" placeholder="Ex.: AS-1024 ou QB123456789BR" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <button class="btn btn--primary" type="submit"><span class="btn__label" data-text="Rastrear"><span>Rastrear</span></span><i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+        </form>
+        <p class="t-hint t-in">Quer ver como funciona? <button type="button" id="demo">Abrir um pedido de exemplo</button></p>
+      </div>
+    </section>
+
+    <!-- RESULTADO -->
+    <section class="t-result wrap" id="resultado" aria-live="polite"></section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer__base">
+      <span>© <span id="year">2026</span> Atual Comércio de Sucatas · CNPJ 35.445.257/0001-31</span>
+      <a href="../painel/">Acesso da loja</a>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="../compartilhado/sync-core.js?v=2"></script>
+  <script src="../compartilhado/orders.js?v=18"></script>
+  <script src="../compartilhado/fundo.js?v=7"></script>
+  <script src="main.js?v=15"></script>
+  <script src="rastreio.js?v=6"></script>
+</body>
+</html>

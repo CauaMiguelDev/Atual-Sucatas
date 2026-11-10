@@ -19,14 +19,16 @@ O endereço principal, https://cauamigueldev.github.io/Atual-Sucatas/, abre o si
 **Site**
 - Navegue pelas seções: procedência, peças, pátio, envio para todo o Brasil, como comprar, dúvidas e contato.
 - Os botões de orçamento abrem o WhatsApp da loja com a mensagem pronta.
-- Clique em **Rastrear pedido** (no menu) e digite o código de um pedido ou o código de rastreio para ver o acompanhamento.
+- Clique em **Rastrear pedido** (no menu) para abrir a página de rastreio (`site/rastreio.html`) e digite o código de um pedido ou o código de rastreio. O botão **Abrir um pedido de exemplo** mostra como funciona.
 
 **Painel**
 - No primeiro acesso, o painel pede para **criar um usuário e uma senha**. Depois disso, é só entrar com eles.
 - O painel começa **vazio**. Use **Novo pedido** para cadastrar. Em Configurações dá para **apagar todos os pedidos**, e cada pedido tem **Apagar pedido**.
 - No topo da tela de pedidos, o guia **Como atender um pedido pelo painel** resume o processo em 4 passos.
 - Cada pedido mostra o **próximo passo** (enviar confirmação, emitir nota, enviar nota, avisar entrega) com um botão que leva direto para ele.
-- Na aba **Notas**, a nota fiscal é feita **passo a passo**: conferir o cliente, conferir peças e pagamento, gerar e conferir o PDF, enviar ao cliente.
+- Em **Notas fiscais**, a lista **Notas para fazer agora** mostra o que falta em cada pedido. Dentro do pedido, a aba **Notas** diz o que fazer e gera o PDF com um clique.
+- Em **Entregas**, **Mudar rota** troca etapa, cidade da parada, transportadora e previsão num lugar só.
+- Em **Mensagens** ficam todos os avisos de WhatsApp: escolha o pedido, confira o texto e envie. Os textos ficam em `painel/mensagens.js`.
 - A **nota do pedido** é um resumo em PDF (não fiscal) com peças, valores, pagamento, entrega e andamento, que pode ir junto com a confirmação.
 - No computador, o botão do WhatsApp só abre a conversa com a mensagem pronta: baixar o PDF é opcional. No celular, o PDF vai junto pelo compartilhamento, sem baixar nada.
 - Se o painel estiver aberto em mais de uma aba, todas mostram as mudanças na hora, sem recarregar.
@@ -37,9 +39,11 @@ O endereço principal, https://cauamigueldev.github.io/Atual-Sucatas/, abre o si
 ## Estrutura
 
 ```
-site/            site da loja (página pública)
-painel/          painel da loja (pedidos, notas fiscais, mensagens)
-compartilhado/   dados dos pedidos, usados pelo site (rastreio) e pelo painel
+site/            site da loja e página de rastreio (rastreio.html)
+painel/          painel da loja (início, pedidos, notas, entregas, clientes, rastreio, ajuda, configurações)
+compartilhado/   dados dos pedidos e fundo animado, usados pelo site e pelo painel
+api/             API em PHP para a Hostinger: guarda os pedidos e responde o rastreio
+netlify/         a mesma API para o Netlify (usada só em endereços .netlify.app)
 assets/          logo e fotos do pátio
 exemplos/        nota fiscal e nota do pedido de exemplo em PDF
 index.html       abre o site
@@ -60,6 +64,18 @@ Depende da aprovação do dono para a próxima etapa:
 - **Emissão oficial da NF-e:** o PDF é uma pré-visualização marcada como "sem valor fiscal". A nota oficial, com chave de acesso e protocolo, sai pela integração com o emissor fiscal da loja.
 - **WhatsApp Business API:** para enviar a mensagem e o PDF direto para o número do cliente, sem passos manuais.
 - **Domínio próprio:** por exemplo, atualsucatas.com.br.
+
+## Publicar na Hostinger
+
+1. Envie o conteúdo do pacote para a pasta `public_html` (Gerenciador de arquivos, extrair o .zip).
+2. Ative o SSL do domínio. O login do painel só funciona em https.
+3. Abra `/painel/` e faça o primeiro acesso: cole a chave de instalação (a que está em `api/config.php`) e escolha usuário e senha. Isso é feito uma vez só.
+4. Em qualquer outro aparelho, entre com o mesmo usuário e senha: ele já fica conectado, sem colar nada.
+5. Se já havia pedidos em outro endereço, use **Backup** em Configurações: baixe no endereço antigo e restaure no novo.
+
+Todo pedido salvo ganha um código de rastreio da loja (começa com ATS) e vai para o servidor na hora, então o cliente já consegue rastrear. A bolinha no menu do painel mostra se está conectado.
+
+Os pedidos, o acesso e as notas ficam em `atual-sucatas-dados/`, **fora da pasta do site** (ao lado de `public_html`), então trocar ou apagar o site não mexe neles. Se o servidor não permitir, ficam em `api/dados/`, bloqueada pelo `.htaccess` dela; o painel avisa em Configurações. Toda nota emitida entra em `notas/catalog.json`, que só acumula, com uma cópia por dia em `notas/copias/`. A senha do administrador e o acesso padrão da loja existem só como hash, em `api/admin-senha.php` e `api/loja-acesso.php`, que também fica fora do Git e vai no pacote. `api/config.php` nunca vai para o Git; o modelo é `api/config.example.php`.
 
 ## Rodar no computador
 

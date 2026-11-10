@@ -30,14 +30,16 @@
     return ops;
   }
 
-  // só o que o rastreio público mostra. Nunca nome, CPF, endereço, valores ou mensagens.
+  // só o que o rastreio público mostra (a cidade sim; nome, CPF, rua, valores e mensagens nunca).
   function trimForTrack(o) {
     if (!o) return null;
     return {
       codigo: o.codigo,
       status: o.status,
       previsao: o.previsao || null,
-      historico: (o.historico || []).map(h => ({ status: h.status, data: h.data })),
+      historico: (o.historico || []).map(h => ({ status: h.status, data: h.data, local: h.local || '', obs: h.obs || '' })),
+      destino: o.cliente?.cidade || '',
+      codigoRastreio: o.codigoRastreio || '',
       rastreio: o.rastreio?.codigo
         ? { transportadora: o.rastreio.transportadora || '', codigo: o.rastreio.codigo }
         : null,
@@ -49,7 +51,7 @@
   // acha um pedido pelo código do pedido ou pelo de rastreio (usado no servidor)
   function findInList(list, code) {
     const c = normCode(code);
-    return c ? (list || []).find(o => normCode(o.codigo) === c || normCode(o.rastreio?.codigo) === c) : undefined;
+    return c ? (list || []).find(o => normCode(o.codigo) === c || normCode(o.codigoRastreio) === c || normCode(o.rastreio?.codigo) === c) : undefined;
   }
 
   return { normCode, mapOf, computeOps, trimForTrack, findInList };

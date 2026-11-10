@@ -84,7 +84,7 @@ const reveal = new IntersectionObserver(entries => entries.forEach(e => {
 $$('.reveal, .split, .reveal-clip').forEach(el => reveal.observe(el));
 
 /* floating WhatsApp button appears once the hero CTA is out of view */
-const heroCta = $('.hero__ctas');
+const heroCta = $('#finder');
 if (heroCta) new IntersectionObserver(([e]) => $('#fab').classList.toggle('is-on', !e.isIntersecting && e.boundingClientRect.top < 0)).observe(heroCta);
 
 /* ---------- buttons: fill starts where the cursor enters / leaves ---------- */
@@ -155,55 +155,13 @@ if (city && !reduceMotion) {
 }
 if (reduceMotion) $('.route__map')?.pauseAnimations?.();
 
-/* ---------- order tracking (customer side) ---------- */
-const track = $('#track');
-const trackInput = $('#track-code');
-const trackResult = $('#track-result');
-
-function openTrack(code) {
-  setMenu(false);
-  if (!track.open) track.showModal();
-  if (code) { trackInput.value = code; renderTrack(code); }
-  else trackInput.focus();
-}
+/* ---------- order tracking: lives on its own page (rastreio.html) ---------- */
+const openTrack = code => { location.href = `rastreio.html${code ? `?pedido=${encodeURIComponent(code)}` : ''}`; };
 $$('[data-open-track]').forEach(b => b.addEventListener('click', () => openTrack()));
-$('[data-close]', track).addEventListener('click', () => track.close());
-track.addEventListener('click', e => { // click on backdrop
-  if (e.target !== track) return;
-  const r = track.getBoundingClientRect();
-  if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) track.close();
-});
-
-async function renderTrack(code) {
-  trackResult.innerHTML = `<p class="track__empty">Procurando o pedido…</p>`;
-  const o = await trackOrder(code);
-  if (o === undefined) {
-    trackResult.innerHTML = `<p class="track__empty">Não foi possível consultar agora. Tente de novo em instantes ou fale com a gente no <a href="https://wa.me/${STORE_WHATS}" target="_blank" rel="noopener">WhatsApp</a>.</p>`;
-    return;
-  }
-  if (!o) {
-    trackResult.innerHTML = `<p class="track__empty">Não encontramos nenhum pedido com o código <b>${esc(normCode(code))}</b>. Confira o código do pedido ou de rastreio ou fale com a gente no <a href="https://wa.me/${STORE_WHATS}" target="_blank" rel="noopener">WhatsApp</a>.</p>`;
-    return;
-  }
-  const when = s => o.historico.find(h => h.status === s)?.data;
-  const done = o.status === ORDER_STATUS.length - 1;
-  trackResult.innerHTML = `
-    <div class="track__head">
-      <div><div class="track__code">${esc(o.codigo)}</div><div class="track__items">${o.itens.map(i => esc(i.desc)).join(', ')}</div></div>
-      <span class="pill ${done ? 'pill--ok' : ''}">${esc(ORDER_STATUS[o.status])}</span>
-    </div>
-    <ol class="timeline">
-      ${ORDER_STATUS.map((s, i) => `<li class="${i <= o.status ? 'done' : ''} ${i === o.status ? 'current' : ''}"><strong>${s}</strong>${i <= o.status ? `<small>${fmtDate(when(i))}</small>` : ''}</li>`).join('')}
-    </ol>
-    ${o.previsao && !done ? `<div class="track__ship">Previsão de entrega: <b>${o.previsao.split('-').reverse().join('/')}</b></div>` : ''}
-    ${o.rastreio?.codigo ? `<div class="track__ship">${esc(o.rastreio.transportadora || 'Envio')}: <b>${esc(o.rastreio.codigo)}</b></div>` : ''}
-    ${o.nf ? `<div class="track__ship">Nota fiscal nº <b>${o.nf.numero}</b>, emitida em ${fmtDate(o.nf.emitidaEm)}</div>` : ''}`;
-}
-$('#track-form').addEventListener('submit', e => { e.preventDefault(); renderTrack(trackInput.value); });
 $('#track-inline')?.addEventListener('submit', e => { e.preventDefault(); openTrack($('#track-inline-code').value); });
 
-// links sent to customers: /?pedido=AS-1022#rastrear opens the dialog filled in
+// links already sent to customers: /?pedido=AS-1022#rastrear
 const params = new URLSearchParams(location.search);
-if (location.hash === '#rastrear' || params.has('pedido')) openTrack(params.get('pedido'));
+if (!document.body.classList.contains('rastreio') && (location.hash === '#rastrear' || params.has('pedido'))) openTrack(params.get('pedido'));
 
 $('#year').textContent = new Date().getFullYear();

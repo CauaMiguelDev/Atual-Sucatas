@@ -79,18 +79,30 @@ function applyLock() {
 
 const authForm = $('#auth-form');
 const authErr = $('#auth-error');
-const setupMode = () => !readAuth();
+let serverAuth = null; // { configurado } quando a API de login responde
+const setupMode = () => serverAuth ? !serverAuth.configurado : !readAuth();
 
 function setSubmitLabel(text) {
   $('#auth-submit .btn__label').dataset.text = text;
   $('#auth-submit .btn__label > span').textContent = text;
 }
+/* duas abas no login: Cliente (a loja) e Admin (o administrador do site) */
+let authTab = new URLSearchParams(location.search).get('acesso') === 'admin' ? 'admin' : 'cliente';
+// sem a API só é normal no computador local e nos endereços antigos; na Hostinger isso é falha do servidor,
+// e criar um acesso local ali deixaria os pedidos presos em um navegador
+const NO_API_OK = /^(localhost|127\.0\.0\.1|\[::1\])?$|\.github\.io$|\.netlify\.app$/.test(location.hostname);
 function showAuth(msg = '', ok = false) {
   $('#app').hidden = true;
   $('#auth').hidden = false;
-  const setup = setupMode();
-  $('#auth-title').textContent = setup ? 'Crie o acesso do painel' : 'Painel da loja';
-  $('#auth-hint').textContent = setup ? 'Primeiro acesso: escolha um usuário e uma senha com pelo menos 6 caracteres.' : 'Entre com seu usuário e senha.';
+  const admin = authTab === 'admin', down = !serverAuth && !NO_API_OK, setup = !admin && !down && setupMode();
+  $$('[data-auth-tab]').forEach(b => { const on = b.dataset.authTab === authTab; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on); });
+  $('#auth-title').textContent = admin ? 'Administração' : setup ? 'Crie o acesso do painel' : 'Painel da loja';
+  $('#auth-hint').textContent = down ? 'O painel não conseguiu falar com o servidor. Confira se o PHP da hospedagem está na versão 8 e recarregue a página.'
+    : admin ? 'Acesso restrito ao administrador do site.'
+    : !setup ? 'Entre com seu usuário e senha.' : serverAuth
+    ? 'Primeiro acesso: cole a chave de instalação e escolha usuário e senha. Depois disso, qualquer aparelho entra só com eles.'
+    : 'Primeiro acesso: escolha um usuário e uma senha com pelo menos 6 caracteres.';
+  $('#key-wrap').hidden = !(setup && serverAuth);
   $('#pw2-wrap').hidden = !setup;
   $('#pw2').required = setup;
   $('#pw').autocomplete = setup ? 'new-password' : 'current-password';
@@ -98,24 +110,42 @@ function showAuth(msg = '', ok = false) {
   authErr.textContent = msg;
   authErr.classList.toggle('is-ok', ok);
   $('#pw').value = ''; $('#pw2').value = '';
-  if (setup) $('#user').value = '';
-  if (!setup) applyLock();
+  if (setup || admin) $('#user').value = '';
+  if (!setup && !admin) applyLock();
+  else { clearInterval(lockTimer); ['#user', '#pw', '#pw2'].forEach(f => ($(f).disabled = false)); }
+  $('#auth-submit').disabled = down || (!setup && !admin && readLock().until > Date.now());
   setTimeout(() => ($('#user').value ? $('#pw') : $('#user')).focus(), 50);
 }
-function enterApp() {
+$$('[data-auth-tab]').forEach(b => b.addEventListener('click', () => { authTab = b.dataset.authTab; showAuth(); }));
+async function adminSubmit(user, pw) {
+  authErr.classList.remove('is-ok');
+  if (!serverAuth) return (authErr.textContent = 'O acesso de administrador funciona com o site publicado na Hostinger.');
+  setSubmitLabel('Conectando...');
+  const r = await ADMIN.check(user, pw);
+  setSubmitLabel('Entrar');
+  if (!r.ok) { authErr.textContent = r.error; shake($('#auth-form')); $('#pw').select(); return; }
+  await setCredentials(user, pw); // abre também o painel da loja neste aparelho; quem decide o acesso é o servidor
+  sessionStorage.setItem(SESSION_KEY, '1');
+  location.href = 'admin.html';
+}
+function enterApp(fromLogin = false) {
   clearLock();
   sessionStorage.setItem(SESSION_KEY, '1');
+  if (fromLogin) playGate();
   $('#auth').hidden = true;
   $('#app').hidden = false;
   autoAdvanceSchedule();
   renderAll();
   armIdle();
+  setView(VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'inicio');
+  if (fromLogin) setTimeout(() => enterView(currentView), 850); // a entrada acontece quando a cortina sobe
   // deep link from the admin area: painel/?pedido=AS-1027 opens that order
   const code = new URLSearchParams(location.search).get('pedido');
   if (code) { const o = orders.find(x => x.codigo === code); if (o) openDrawer(o); }
 }
 function logout(msg) {
   sessionStorage.removeItem(SESSION_KEY);
+  ADMIN.logout();
   $$('dialog[open]').forEach(d => d.close());
   showAuth(msg);
 }
@@ -124,6 +154,8 @@ function logout(msg) {
 authForm.addEventListener('submit', async e => {
   e.preventDefault();
   const user = $('#user').value, pw = $('#pw').value;
+  if (authTab === 'admin') return adminSubmit(user, pw);
+  if (serverAuth) return serverSubmit(user, pw);
   if (readLock().until > Date.now()) return applyLock();
   if (setupMode()) {
     if (normUser(user).length < 3 || /\s/.test(user.trim())) return (authErr.textContent = 'O usuário precisa ter pelo menos 3 letras, sem espaços.');
@@ -131,14 +163,15 @@ authForm.addEventListener('submit', async e => {
     if (pw !== $('#pw2').value) return (authErr.textContent = 'As duas senhas não são iguais.');
     setSubmitLabel('Criando acesso...');
     await setCredentials(user, pw);
-    return enterApp();
+    return enterApp(true);
   }
   if (!(await checkLogin(user, pw))) {
     registerFail();
+    shake($('#auth-form'));
     if (!$('#pw').disabled) $('#pw').select();
     return;
   }
-  enterApp();
+  enterApp(true);
 });
 
 
@@ -200,24 +233,45 @@ function nextStep(o) {
   if (o.status < LAST) return { text: 'Quando o cliente receber, marque o pedido como Entregue e envie o aviso.', short: 'Aguardando entrega', btn: 'Atualizar entrega', tab: 'entrega' };
   return { done: true, text: 'Pedido concluído. O cliente recebeu a confirmação, a nota e todos os avisos.', short: 'Concluído' };
 }
+// código de rastreio da loja: nasce com o pedido e nunca muda, mesmo se entrar um código de transportadora
+const genTrack = () => 'ATS' + [...crypto.getRandomValues(new Uint8Array(8))].map(b => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[b % 31]).join('');
+const trackCodeOf = o => o.codigoRastreio || o.rastreio?.codigo || o.codigo;
 const SITE_KEY = 'atual_site_url';
 const siteUrl = () => localStorage.getItem(SITE_KEY) || new URL('../site/', location.href).href;
-const trackLink = o => `${siteUrl().replace(/[?#].*$/, '')}?pedido=${encodeURIComponent(o.codigo)}#rastrear`;
+// the saved address can be the domain root or the site/ folder; the tracking page lives in site/
+const trackPage = code => {
+  const base = siteUrl().replace(/[?#].*$/, '').replace(/index\.html$/, '').replace(/\/?$/, '/');
+  return `${base}${/\/site\/$/.test(base) ? '' : 'site/'}rastreio.html?pedido=${encodeURIComponent(code)}`;
+};
+const trackLink = o => trackPage(o.codigo);
 
 /* =====================================================================
    VIEWS
    ===================================================================== */
 const VIEWS = {
-  pedidos: ['Pedidos', 'Acompanhe pedidos, entregas e notas fiscais.'],
-  notas: ['Notas fiscais', 'Emita, confira e envie as notas para os clientes.'],
-  config: ['Configurações', 'Senha do painel e endereço do site.'],
+  inicio: ['Início', ''],
+  pedidos: ['Pedidos', 'Cada venda, da primeira mensagem no WhatsApp até a entrega na porta do cliente.'],
+  notas: ['Notas fiscais', 'Toda peça sai daqui com nota. Emita, confira e envie sem sair do painel.'],
+  entregas: ['Entregas', 'De Chapecó para todo o Brasil. Veja cada pedido na estrada e avise o cliente em um clique.'],
+  clientes: ['Clientes', 'Quem já comprou da loja, com o histórico montado sozinho a partir dos pedidos.'],
+  mensagens: ['Mensagens', 'Todos os avisos de WhatsApp num lugar só. Escolha o pedido, confira o texto e envie.'],
+  rastreio: ['Testar rastreio', 'Veja exatamente o que o cliente vê ao abrir o link.'],
+  ajuda: ['Como usar', 'O dia a dia do painel, em poucos passos.'],
+  config: ['Configurações', 'Senha do painel, dados da loja e backup.'],
 };
+let currentView = 'inicio';
 function setView(v) {
   $$('[data-view]').forEach(b => b.classList.toggle('is-active', b.dataset.view === v));
   $$('[data-view-panel]').forEach(p => (p.hidden = p.dataset.viewPanel !== v));
   [$('#view-title').textContent, $('#view-sub').textContent] = VIEWS[v];
-  $('#new-order').hidden = v === 'config';
-  if (v === 'config') { showAdminLock(); $('#site-url').value = siteUrl(); $('#store-cnpj').value = storeCnpj(); $('#cfg-user').textContent = readAuth()?.user || ''; $('#sync-key').value = syncKey(); renderSyncStatus(); }
+  currentView = v;
+  $('#main-head').hidden = v === 'inicio';
+  $('#new-order').hidden = !['pedidos', 'notas', 'entregas'].includes(v);
+  history.replaceState(null, '', `${location.search}#${v}`);
+  scrollTo(0, 0);
+  enterView(v);
+  if (v === 'rastreio') renderTester();
+  if (v === 'config') { $('#site-url').value = siteUrl(); $('#store-cnpj').value = storeCnpj(); $('#cfg-user').textContent = readAuth()?.user || ''; $('#sync-key').value = syncKey(); renderSyncStatus(); }
 }
 $$('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
 
@@ -236,10 +290,10 @@ function renderKpis() {
   const month = issuedIn(thisMonth()).length;
   const total = orders.reduce((t, o) => t + orderTotal(o), 0);
   $('#kpis').innerHTML = `
-    <div class="kpi"><span><i class="ph ph-truck"></i>Em andamento</span><strong>${open}</strong></div>
-    <button class="kpi kpi--red" type="button" data-go="issued"><span><i class="ph ph-receipt"></i>Notas emitidas em ${monthLabel(thisMonth()).split(' ')[0].toLowerCase()}</span><strong>${month}</strong></button>
-    <button class="kpi" type="button" data-go="unsent"><span><i class="ph ph-whatsapp-logo"></i>Notas a enviar</span><strong>${nfUnsent}</strong></button>
-    <div class="kpi"><span><i class="ph ph-currency-circle-dollar"></i>Total em pedidos</span><strong>${brl(total)}</strong></div>`;
+    <div class="kpi"><span><i class="ph ph-truck"></i>Em andamento</span><strong data-num="${open}">${open}</strong></div>
+    <button class="kpi kpi--red" type="button" data-go="issued"><span><i class="ph ph-receipt"></i>Notas emitidas em ${monthLabel(thisMonth()).split(' ')[0].toLowerCase()}</span><strong data-num="${month}">${month}</strong></button>
+    <button class="kpi" type="button" data-go="unsent"><span><i class="ph ph-whatsapp-logo"></i>Notas a enviar</span><strong data-num="${nfUnsent}">${nfUnsent}</strong></button>
+    <div class="kpi"><span><i class="ph ph-currency-circle-dollar"></i>Total em pedidos</span><strong data-num="${total}" data-money>${brl(total)}</strong></div>`;
   $('#nf-count').textContent = nfPending + nfUnsent || '';
 }
 $('#kpis').addEventListener('click', e => {
@@ -259,7 +313,7 @@ function renderRows() {
   $('#rows').innerHTML = list.map((o, i) => {
     const nf = nfState(o);
     const next = nextStep(o);
-    return `<tr data-code="${esc(o.codigo)}" style="animation-delay:${i * 35}ms">
+    return `<tr data-code="${esc(o.codigo)}" style="--i:${Math.min(i, 12)}">
       <td><span class="o-code">${esc(o.codigo)}</span><span class="o-sub">${fmtDate(o.data)}</span></td>
       <td>${esc(o.cliente.nome || 'Sem nome')}<span class="o-sub">${esc(o.cliente.cidade)}</span></td>
       <td><div class="o-items">${o.itens.map(i => esc(i.desc)).join(', ') || '<span class="o-sub">Sem peças</span>'}</div></td>
@@ -310,10 +364,10 @@ function renderNfRows() {
   const sum = issued.reduce((t, o) => t + orderTotal(o), 0);
   const sent = issued.filter(o => o.nf.enviadaEm).length;
   $('#nf-kpis').innerHTML = `
-    <div class="kpi kpi--red"><span><i class="ph ph-receipt"></i>Notas emitidas</span><strong>${issued.length}</strong></div>
-    <div class="kpi"><span><i class="ph ph-currency-circle-dollar"></i>Valor das notas</span><strong>${brl(sum)}</strong></div>
-    <div class="kpi"><span><i class="ph ph-checks"></i>Enviadas ao cliente</span><strong>${sent}</strong></div>
-    <div class="kpi"><span><i class="ph ph-clock"></i>Aguardando envio</span><strong>${issued.length - sent}</strong></div>`;
+    <div class="kpi kpi--red"><span><i class="ph ph-receipt"></i>Notas emitidas</span><strong data-num="${issued.length}">${issued.length}</strong></div>
+    <div class="kpi"><span><i class="ph ph-currency-circle-dollar"></i>Valor das notas</span><strong data-num="${sum}" data-money>${brl(sum)}</strong></div>
+    <div class="kpi"><span><i class="ph ph-checks"></i>Enviadas ao cliente</span><strong data-num="${sent}">${sent}</strong></div>
+    <div class="kpi"><span><i class="ph ph-clock"></i>Aguardando envio</span><strong data-num="${issued.length - sent}">${issued.length - sent}</strong></div>`;
 
   const pending = nfFilter === 'pending';
   const list = (pending
@@ -323,7 +377,7 @@ function renderNfRows() {
 
   $('#nf-rows').innerHTML = list.map((o, i) => {
     const act = !o.nf ? ['Emitir nota', 'ph-file-plus', 'nota'] : !o.nf.enviadaEm ? ['Enviar', 'ph-whatsapp-logo', 'msg'] : ['Ver PDF', 'ph-file-pdf', 'pdf'];
-    return `<tr data-code="${esc(o.codigo)}" data-act="${act[2]}" style="animation-delay:${i * 35}ms">
+    return `<tr data-code="${esc(o.codigo)}" data-act="${act[2]}" style="--i:${Math.min(i, 12)}">
       <td>${o.nf ? `<span class="o-code">Nº ${o.nf.numero}</span><span class="o-sub">Série ${o.nf.serie}</span>` : '<span class="pill">Sem nota</span>'}</td>
       <td><span class="o-code o-code--sm">${esc(o.codigo)}</span></td>
       <td>${esc(o.cliente.nome)}<span class="o-sub">${esc(o.cliente.doc || 'CPF/CNPJ não informado')}</span></td>
@@ -345,17 +399,21 @@ $('#nf-rows').addEventListener('click', e => {
   if (tr.dataset.act === 'pdf') openPdfPreview('nf');
 });
 
-const renderAll = () => { renderKpis(); renderRows(); renderNfRows(); };
+const renderAll = () => { renderKpis(); renderRows(); renderNfRows(); renderNfQueue(); renderHome(); renderShips(); renderClients(); renderMc(); };
 
 /* config */
 $('#pw-form').addEventListener('submit', async e => {
   e.preventDefault();
   const a = readAuth();
-  if (!(await checkLogin(a.user, $('#pw-old').value))) return toast('A senha atual está incorreta.');
+  if (!serverAuth && !(await checkLogin(a.user, $('#pw-old').value))) return toast('A senha atual está incorreta.');
   const newUser = $('#user-new').value.trim() || a.user;
   if (normUser(newUser).length < 3 || /\s/.test(newUser)) return toast('O usuário precisa ter pelo menos 3 letras, sem espaços.');
   if ($('#pw-new').value.length < 6) return toast('A nova senha precisa ter pelo menos 6 caracteres.');
   if ($('#pw-new').value !== $('#pw-new2').value) return toast('As duas senhas novas não são iguais.');
+  if (serverAuth) {
+    const r = await fetch(syncUrl('login'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ acao: 'trocar', usuario: a.user, senha: $('#pw-old').value, novoUsuario: newUser, novaSenha: $('#pw-new').value }) }).catch(() => null);
+    if (!r?.ok) return toast(r ? 'A senha atual está incorreta.' : 'Sem conexão com o servidor.');
+  }
   await setCredentials(newUser, $('#pw-new').value);
   e.target.reset();
   $('#cfg-user').textContent = readAuth().user;
@@ -382,7 +440,7 @@ $('#site-form').addEventListener('submit', e => {
 });
 /* sync key: same value in every device links them to the shared store */
 function renderSyncStatus() {
-  $('#sync-status').textContent = syncKey()
+  $('#sync-status').textContent = serverAuth ? 'Conectado sozinho pelo login. Não precisa colar nada aqui.' : syncKey()
     ? 'Sincronização ligada. Os pedidos aparecem em todos os aparelhos com esta chave.'
     : 'Sincronização desligada. Os pedidos ficam só neste navegador.';
 }
@@ -394,32 +452,11 @@ $('#sync-form').addEventListener('submit', e => {
   toast(k ? 'Chave salva. Buscando os pedidos…' : 'Sincronização desligada.');
   setTimeout(() => location.reload(), 600); // recarrega para (re)iniciar a sincronização
 });
-/* administrator entry: correct password opens admin.html (check, lock and session in admin-acesso.js) */
-let adminTimer;
-function showAdminLock() {
-  clearInterval(adminTimer);
-  const tick = () => {
-    const locked = ADMIN.lockedFor() > 0;
-    $('#admin-pw').disabled = $('#admin-submit').disabled = locked;
-    if (locked) $('#admin-error').textContent = ADMIN.message();
-    else { clearInterval(adminTimer); if ($('#admin-error').textContent.startsWith('Muitas')) $('#admin-error').textContent = ''; }
-  };
-  tick();
-  if (ADMIN.lockedFor()) adminTimer = setInterval(tick, 1000);
-}
-$('#admin-form').addEventListener('submit', async e => {
-  e.preventDefault();
-  const r = await ADMIN.check($('#admin-pw').value);
-  $('#admin-pw').value = '';
-  if (r.ok) return void (location.href = 'admin.html');
-  $('#admin-error').textContent = ADMIN.message(r);
-  if (r.locked) showAdminLock();
-});
 $('#reset-demo').addEventListener('click', async () => {
   const n = loadOrders().length;
   if (!n) return toast('O painel já está vazio.');
   const aviso = syncKey() ? 'de TODOS os aparelhos' : 'deste navegador';
-  if (!confirm(`Apagar TODOS os ${n} pedido(s) ${aviso}? Isso não pode ser desfeito.`)) return;
+  if (!confirm(`Apagar TODOS os ${n} pedido(s) ${aviso}? Pedidos sem nota não voltam. ${avisoCatalogo()}`)) return;
   await clearAllOrders();
   orders = loadOrders();
   renderAll();
@@ -428,7 +465,7 @@ $('#reset-demo').addEventListener('click', async () => {
 /* delete a single order from the drawer */
 $('#d-delete').addEventListener('click', () => {
   if (isNew || !current) return;
-  if (!confirm(`Apagar o pedido ${current.codigo} de ${current.cliente.nome || 'sem nome'}? Isso não pode ser desfeito.`)) return;
+  if (!confirm(`Apagar o pedido ${current.codigo} de ${current.cliente.nome || 'sem nome'}? ${avisoCatalogo()}`)) return;
   orders = loadOrders().filter(o => o.codigo !== current.codigo);
   saveOrders(orders);
   drawer.close();
@@ -440,12 +477,12 @@ $('#clear-nf').addEventListener('click', () => {
   orders = loadOrders();
   const n = orders.filter(o => o.nf).length;
   if (!n) return toast('Não há notas para apagar.');
-  if (!confirm(`Apagar as ${n} nota(s) fiscal(is) de todos os pedidos? Os pedidos continuam e voltam para "a emitir". Isso não pode ser desfeito.`)) return;
+  if (!confirm(`Apagar as ${n} nota(s) fiscal(is) de todos os pedidos? Os pedidos continuam e voltam para "a emitir". ${avisoCatalogo()}`)) return;
   orders.forEach(o => { o.nf = null; o.msgs = (o.msgs || []).filter(m => m.tpl !== 'nota'); });
   saveOrders(orders);
   if (drawer.open && current && !isNew) {
     const f = orders.find(o => o.codigo === current.codigo);
-    if (f) { current.nf = null; current.msgs = f.msgs; nfStep = 0; nfChecked = false; renderHead(); renderNext(); renderNotes(); renderMsg(); }
+    if (f) { current.nf = null; current.msgs = f.msgs; renderHead(); renderNext(); renderNotes(); renderMsg(); }
   }
   renderAll();
   toast(`${n} nota(s) apagada(s).`);
@@ -529,6 +566,7 @@ $('#notify').addEventListener('click', e => {
     current.msgs.push({ tpl: 'tentativa', data: new Date().toISOString(), status: current.status });
   } else {
     const stage = +v;
+    if (stage === LAST && current.status !== LAST) celebrate(b);
     current.status = stage;
     form.status.value = stage;
     text = deliveryMsg(current, stage);
@@ -644,10 +682,7 @@ async function lookupCep() {
     if (j.localidade && j.uf) form.cidade.value = `${j.localidade} - ${j.uf}`;
     cepErr(`${j.localidade} - ${j.uf}${j.bairro ? `, ${j.bairro}` : ''} ✓`, 'is-ok');
     renderTrackChip(); renderNext();
-    if (form.endereco.value.trim() && !/\d/.test(form.endereco.value)) {
-      form.endereco.focus();
-      form.endereco.setSelectionRange(form.endereco.value.length, form.endereco.value.length);
-    }
+    if (form.endereco.value.trim() && !form.numero.value.trim()) form.numero.focus();
   } catch { cepErr('Não consegui consultar o CEP agora. Preencha na mão.'); }
 }
 form.cep.addEventListener('input', e => { e.target.value = maskCep(e.target.value); lookupCep(); });
@@ -657,7 +692,8 @@ function updateTotal() { readForm(); $('#d-total').textContent = brl(orderTotal(
 function fillForm() {
   const c = current.cliente;
   form.nome.value = c.nome; form.whatsapp.value = c.whatsapp; form.doc.value = c.doc; form.cidade.value = c.cidade;
-  form.endereco.value = c.endereco || ''; form.bairro.value = c.bairro || ''; form.cep.value = c.cep || '';
+  const [, rua = c.endereco || '', num = ''] = String(c.endereco || '').match(/^(.*?),\s*(\S+)$/) || [];
+  form.endereco.value = rua; form.numero.value = num; form.bairro.value = c.bairro || ''; form.cep.value = c.cep || '';
   form.frete.value = current.frete || 0;
   form.pagamento.value = current.pagamento || '';
   form.obs.value = current.obs || '';
@@ -670,7 +706,7 @@ function fillForm() {
 function readForm() {
   current.cliente = {
     nome: form.nome.value.trim(), whatsapp: form.whatsapp.value.trim(), doc: form.doc.value.trim(), cidade: form.cidade.value.trim(),
-    endereco: form.endereco.value.trim(), bairro: form.bairro.value.trim(), cep: form.cep.value.trim(),
+    endereco: [form.endereco.value.trim(), form.numero.value.trim()].filter(Boolean).join(', '), bairro: form.bairro.value.trim(), cep: form.cep.value.trim(),
   };
   current.itens = $$('#items .item').map(row => ({
     desc: row.querySelector('[data-k=desc]').value.trim(),
@@ -693,7 +729,7 @@ function renderHead() {
 }
 /* tracking code in the header: click copies it, or jumps to the field when missing */
 function renderTrackChip() {
-  const code = current.rastreio?.codigo;
+  const code = current.codigoRastreio || current.rastreio?.codigo;
   const chip = $('#d-track');
   chip.classList.toggle('is-empty', !code);
   chip.title = code ? 'Copiar código de rastreio' : 'Adicionar código de rastreio';
@@ -702,7 +738,7 @@ function renderTrackChip() {
     : '<i class="ph ph-package"></i><span>Sem código de rastreio</span>';
 }
 $('#d-track').addEventListener('click', async () => {
-  const code = current?.rastreio?.codigo;
+  const code = current?.codigoRastreio || current?.rastreio?.codigo;
   if (!code) { setTab('entrega'); form.rastreio.focus(); return; }
   try { await navigator.clipboard.writeText(code); toast(`Código ${code} copiado.`); }
   catch { toast('Não foi possível copiar o código.'); }
@@ -737,31 +773,43 @@ function renderHistory() {
 function openDrawer(order, tab = 'cliente') {
   isNew = !order;
   if (isNew) {
-    const next = Math.max(1000, ...orders.map(o => +o.codigo.replace(/\D/g, '') || 0)) + 1;
+    // o catálogo lembra dos pedidos apagados: um código com nota nunca passa para outro cliente
+    const next = Math.max(1000, notasInfo?.ultimoPedido || 0, ...orders.map(o => +o.codigo.replace(/\D/g, '') || 0)) + 1;
     const now = new Date().toISOString();
+    // a pedido da loja: pedido confirmado já entra como Enviado, com as etapas anteriores no histórico
     current = {
       codigo: `AS-${next}`, data: now, cliente: { nome: '', whatsapp: '', doc: '', cidade: '', endereco: '', bairro: '', cep: '' },
-      itens: [{ desc: '', qtd: 1, valor: 0 }], frete: 0, pagamento: '', obs: '', status: 0, previsao: '',
-      historico: [{ status: 0, data: now }], rastreio: { transportadora: '', codigo: '' }, nf: null, msgs: [],
+      itens: [{ desc: '', qtd: 1, valor: 0 }], frete: 0, pagamento: '', obs: '', status: 2, previsao: '',
+      historico: [0, 1, 2].map(status => ({ status, data: now })), rastreio: { transportadora: '', codigo: '' }, nf: null, msgs: [], codigoRastreio: genTrack(),
     };
   } else current = structuredClone(order);
   current.msgs ||= [];
   current.tentativas ||= 0;
-  nfStep = current.nf ? 3 : 0; nfChecked = !!current.nf;
   $('#d-delete').hidden = isNew;
   fillForm(); renderHead(); renderHistory(); updateTotal(); renderNext();
-  lastCep = ''; showDocErr(); cepErr(''); // refresh CPF/CNPJ and CEP feedback for this order
+  lastCep = ''; lastCnpj = ''; showDocErr(); cepErr(''); $('#wa-err').textContent = ''; $('#cli-hit').hidden = true; // refresh field feedback for this order
+  renderCliLeft();
   setTpl('criado');
   setTab(tab);
   drawer.showModal();
+  if (isNew) form.whatsapp.focus();
 }
-$('#new-order').addEventListener('click', () => openDrawer(null));
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-new]')) openDrawer(null);
+  const go = e.target.closest('[data-go-view]');
+  if (go) setView(go.dataset.goView);
+});
 
 function commit() {
   readForm();
+  current.codigoRastreio ||= genTrack();
   orders = loadOrders(); // start from what is saved, so another tab's changes are never overwritten
   const prev = orders.find(o => o.codigo === current.codigo);
   if (prev && prev.status !== current.status) current.historico.push({ status: current.status, data: new Date().toISOString() });
+  if (!prev) { // retirada na loja não é enviada: o pedido novo para em Peça separada
+    if (isPickup(current)) form.status.value = current.status = Math.min(current.status, 1);
+    current.historico = current.historico.filter(h => h.status <= current.status);
+  }
   if (prev) orders[orders.indexOf(prev)] = structuredClone(current);
   else orders.push(structuredClone(current));
   isNew = false;
@@ -814,9 +862,8 @@ $('#order-doc').addEventListener('click', e => {
   else { setTab('msg'); setTpl('criado'); }
 });
 
-/* Invoice wizard: 1 check customer, 2 check parts and values, 3 generate and review the PDF, 4 send it. */
-const NF_STEPS = ['Cliente', 'Peças e valores', 'Gerar e conferir', 'Enviar'];
-let nfStep = 0, nfChecked = false;
+/* Nota fiscal numa tela só: a faixa de cima diz o que fazer agora, os blocos abaixo mostram o que vai na nota. */
+const NF_STEPS = ['Conferir os dados', 'Gerar a nota', 'Enviar ao cliente'];
 function nfChecks(o) {
   const c = o.cliente;
   const cliente = [['Nome completo', c.nome], ['CPF ou CNPJ', c.doc], ['Endereço', c.endereco], ['Bairro', c.bairro], ['CEP', c.cep], ['Cidade - UF', c.cidade]];
@@ -829,229 +876,73 @@ const checkRow = (label, value, missing = 'Falta preencher') =>
   `<li class="${value ? '' : 'miss'}"><i class="ph ${value ? 'ph-check-circle' : 'ph-warning-circle'}"></i><span>${label}</span><b>${value ? esc(value) : missing}</b></li>`;
 
 function renderWizard() {
-  const o = current;
-  const { cliente, badItems, okC, okP } = nfChecks(o);
-  const reach = [true, okC, okC && okP, okC && okP && !!o.nf && nfChecked];
-  if (!reach[nfStep]) nfStep = reach.lastIndexOf(true);
-  const done = [okC, okC && okP, reach[3], reach[3] && !!o.nf.enviadaEm];
-  const head = `<ol class="wiz__steps">${NF_STEPS.map((s, i) => `<li><button type="button" data-step="${i}" class="${i === nfStep ? 'is-current' : ''} ${done[i] ? 'is-done' : ''}" ${reach[i] ? '' : 'disabled'}>
-    <span>${done[i] && i !== nfStep ? '<i class="ph ph-check"></i>' : i + 1}</span>${s}</button></li>`).join('')}</ol>`;
-  const kicker = `<p class="wiz__kicker">Passo ${nfStep + 1} de 4</p>`;
-  const back = nfStep ? btnHtml('Voltar', 'ph-arrow-left', 'btn--line', 'data-wiz="back"') : '';
-  let body;
+  const o = current, { cliente, badItems, okC, okP } = nfChecks(o);
+  const sent = !!o.nf?.enviadaEm, stage = !(okC && okP) ? 0 : !o.nf ? 1 : !sent ? 2 : 3;
+  const miss = [...cliente.filter(([, v]) => !v).map(([l]) => l), ...(o.itens.length ? [] : ['Peças']), ...(badItems ? [`${badItems} peça(s) sem descrição ou valor`] : []), ...(o.pagamento ? [] : ['Forma de pagamento'])];
+  const code = o.codigoRastreio || o.rastreio?.codigo;
+  const sendBtn = label => btnHtml(label, CAN_ATTACH ? 'ph-paperclip' : 'ph-whatsapp-logo', 'btn--whats', 'data-wiz="enviar"');
+  const now = [
+    { cls: 'is-warn', icon: 'ph-warning-circle', title: `Falta ${miss.length === 1 ? '1 informação' : `${miss.length} informações`} para emitir`, text: miss.join(', '),
+      acts: (okC ? '' : btnHtml('Preencher o cliente', 'ph-pencil-simple', 'btn--primary', 'data-wiz="fix-cliente"')) + (okP ? '' : btnHtml('Corrigir peças e pagamento', 'ph-pencil-simple', okC ? 'btn--primary' : 'btn--line', 'data-wiz="fix-pecas"')) },
+    { cls: 'is-go', icon: 'ph-seal-check', title: 'Tudo certo. Pode gerar a nota.', text: 'Confira o resumo abaixo. O PDF abre na tela logo depois, e o código de rastreio já vai junto.',
+      acts: btnHtml('Gerar nota fiscal', 'ph-file-plus', 'btn--primary btn--lg', 'data-wiz="gerar"') },
+    { cls: 'is-go', icon: 'ph-paper-plane-tilt', title: `Nota nº ${o.nf?.numero} pronta. Agora envie ao cliente.`, text: `Gerada em ${fmtDate(o.nf?.emitidaEm)}. A mensagem já vai com a nota, as peças, os valores e o link de rastreio.`,
+      acts: sendBtn(CAN_ATTACH ? 'Enviar com a nota fiscal' : 'Enviar no WhatsApp') + btnHtml('Ver PDF', 'ph-file-pdf', 'btn--line', 'data-wiz="ver"') + (CAN_ATTACH ? '' : btnHtml('Baixar PDF', 'ph-download-simple', 'btn--line', 'data-wiz="pdf"')) },
+    { cls: 'is-ok', icon: 'ph-check-circle', title: `Nota nº ${o.nf?.numero} enviada`, text: `O cliente recebeu em ${fmtDate(o.nf?.enviadaEm)}. Se ele pedir de novo, é só reenviar.`,
+      acts: sendBtn('Reenviar') + btnHtml('Ver PDF', 'ph-file-pdf', 'btn--line', 'data-wiz="ver"') + btnHtml('Baixar PDF', 'ph-download-simple', 'btn--line', 'data-wiz="pdf"') },
+  ][stage];
 
-  if (nfStep === 0) body = `${kicker}<h4>Confira os dados do cliente</h4>
-    <p class="wiz__hint">A nota sai no nome de quem comprou. Todos estes campos são obrigatórios na nota fiscal, então confira se estão certos.</p>
-    <ul class="check">${cliente.map(([l, v]) => checkRow(l, v)).join('')}</ul>
-    <div class="wiz__actions">
-      ${okC ? '' : btnHtml('Preencher na aba Cliente', 'ph-pencil-simple', 'btn--line', 'data-wiz="fix-cliente"')}
-      ${btnHtml('Próximo: peças e valores', 'ph-arrow-right', 'btn--primary', `data-wiz="next" ${okC ? '' : 'disabled'}`)}
-    </div>`;
-
-  if (nfStep === 1) body = `${kicker}<h4>Confira as peças e os valores</h4>
-    <p class="wiz__hint">Cada peça vira uma linha da nota. Confira a descrição (peça, modelo e ano), a quantidade, o valor e a forma de pagamento.</p>
-    <table class="wiz__items"><tbody>
-      ${o.itens.map(i => `<tr><td>${i.qtd}x ${esc(i.desc) || '<em>Sem descrição</em>'}</td><td class="r">${i.valor > 0 ? brl(i.qtd * i.valor) : '<em>Sem valor</em>'}</td></tr>`).join('')}
-      <tr class="sum"><td>Frete</td><td class="r">${brl(o.frete)}</td></tr>
-      <tr class="total"><td>Total da nota</td><td class="r">${brl(orderTotal(o))}</td></tr>
-    </tbody></table>
-    <ul class="check">
-      ${checkRow('Pagamento', o.pagamento, 'Falta escolher')}
-      ${badItems ? checkRow('Peças', '', `${badItems} peça(s) sem descrição ou valor`) : checkRow('Peças', `${o.itens.length} peça(s) conferida(s)`)}
-    </ul>
-    <div class="wiz__actions">${back}
-      ${okP ? '' : btnHtml('Corrigir na aba Peças', 'ph-pencil-simple', 'btn--line', 'data-wiz="fix-pecas"')}
-      ${btnHtml('Próximo: gerar a nota', 'ph-arrow-right', 'btn--primary', `data-wiz="next" ${okP ? '' : 'disabled'}`)}
-    </div>`;
-
-  if (nfStep === 2) body = !o.nf
-    ? `${kicker}<h4>Gere a nota e confira o PDF</h4>
-      <p class="wiz__hint">O painel monta a nota no modelo DANFE com os dados conferidos e abre o PDF na tela. Leia com calma: nome, CPF/CNPJ, endereço, peças e valores.</p>
-      <p class="wiz__note"><i class="ph ph-info"></i>Prévia sem valor fiscal. A nota oficial, com chave de acesso e protocolo da SEFAZ, sai pelo emissor fiscal da loja quando a integração for aprovada.</p>
-      <div class="wiz__actions">${back}${btnHtml('Gerar nota fiscal', 'ph-file-plus', 'btn--primary', 'data-wiz="gerar"')}</div>`
-    : `${kicker}<h4>Confira o PDF da nota</h4>
-      <div class="nf-box__state"><i class="ph ph-seal-check"></i><div><strong>Nota nº ${o.nf.numero}, série ${o.nf.serie}</strong><small>Gerada em ${fmtDate(o.nf.emitidaEm)}. Se mudou algum dado do pedido, gere de novo: o número continua o mesmo.</small></div></div>
-      <div class="wiz__actions">${btnHtml('Abrir PDF', 'ph-file-pdf', 'btn--line', 'data-wiz="ver"')}${btnHtml('Gerar de novo com os dados atuais', 'ph-arrows-clockwise', 'btn--line', 'data-wiz="gerar"')}</div>
-      <label class="wiz__confirm"><input type="checkbox" id="nf-ok" ${nfChecked ? 'checked' : ''}> Conferi o PDF e está tudo certo</label>
-      <div class="wiz__actions">${back}${btnHtml('Próximo: enviar ao cliente', 'ph-arrow-right', 'btn--primary', `data-wiz="next" ${nfChecked ? '' : 'disabled'}`)}</div>`;
-
-  if (nfStep === 3) {
-    const file = pdfName(o, 'nf');
-    body = o.nf?.enviadaEm
-      ? `${kicker}<h4>Nota enviada</h4>
-        <div class="nf-box__state is-ok"><i class="ph ph-check-circle"></i><div><strong>O cliente recebeu a nota nº ${o.nf.numero}</strong><small>Enviada em ${fmtDate(o.nf.enviadaEm)}. Se ele pedir de novo, reenvie ou baixe o PDF.</small></div></div>
-        <div class="wiz__actions">${back}${btnHtml('Reenviar no WhatsApp', 'ph-whatsapp-logo', 'btn--whats', 'data-wiz="enviar"')}${btnHtml('Baixar PDF', 'ph-download-simple', 'btn--line', 'data-wiz="pdf"')}</div>`
-      : `${kicker}<h4>Envie a nota para o cliente</h4>
-        <p class="wiz__hint">A mensagem já vai pronta, com número da nota, peças, valores e o link de rastreio.</p>
-        <ol class="wiz__how">${(CAN_ATTACH
-          ? ['Toque em <b>Enviar com a nota fiscal</b>.', 'Escolha o <b>WhatsApp</b> e a conversa do cliente.', 'O PDF e a mensagem vão juntos. Confira e envie.']
-          : [`Clique em <b>Enviar no WhatsApp</b>. A conversa do cliente abre ${IS_MOBILE ? 'no WhatsApp' : 'no WhatsApp Web'} com a mensagem pronta.`, 'Confira e envie. O painel marca a nota como enviada.']
-        ).map(t => `<li><span>${t}</span></li>`).join('')}</ol>
-        ${CAN_ATTACH ? '' : `<p class="wiz__note"><i class="ph ph-paperclip"></i><span>Nada é baixado. Mandar o PDF junto é opcional: clique em <b>Baixar PDF</b> e anexe o arquivo <b>${esc(file)}</b> pelo clipe do WhatsApp.</span></p>`}
-        <div class="wiz__actions">${back}${CAN_ATTACH ? btnHtml('Enviar com a nota fiscal', 'ph-paperclip', 'btn--whats', 'data-wiz="enviar"') : btnHtml('Enviar no WhatsApp', 'ph-whatsapp-logo', 'btn--whats', 'data-wiz="enviar"')}${btnHtml('Ver a mensagem', 'ph-chat-text', 'btn--line', 'data-wiz="msg"')}${CAN_ATTACH ? '' : btnHtml('Baixar PDF', 'ph-download-simple', 'btn--line', 'data-wiz="pdf"')}</div>`;
-    if (CAN_ATTACH) getPdf(o, 'nf').catch(() => {}); // ready before the click, so the phone share keeps the user gesture
-  }
-  $('#nf-wiz').innerHTML = `${head}<div class="wiz__panel">${body}</div>`;
+  $('#nf-wiz').innerHTML = `
+    <ol class="nfw__steps">${NF_STEPS.map((s, i) => `<li class="${i < stage ? 'is-done' : i === stage ? 'is-now' : ''}"><span>${i < stage ? '<i class="ph ph-check"></i>' : i + 1}</span>${s}</li>`).join('')}</ol>
+    <div class="nfw__now ${now.cls}"><i class="ph ${now.icon}" aria-hidden="true"></i><div><strong>${now.title}</strong><p>${esc(now.text)}</p></div><div class="nfw__acts">${now.acts}</div></div>
+    <div class="nfw__grid">
+      <section class="nfw__blk"><h4>Para quem é a nota</h4><ul class="check">${cliente.map(([l, v]) => checkRow(l, v)).join('')}</ul></section>
+      <section class="nfw__blk"><h4>O que vai na nota</h4>
+        <table class="wiz__items"><tbody>
+          ${o.itens.map(i => `<tr><td>${i.qtd}x ${esc(i.desc) || '<em>Sem descrição</em>'}</td><td class="r">${i.valor > 0 ? brl(i.qtd * i.valor) : '<em>Sem valor</em>'}</td></tr>`).join('')}
+          <tr class="sum"><td>Frete</td><td class="r">${brl(o.frete)}</td></tr>
+          <tr class="total"><td>Total da nota</td><td class="r">${brl(orderTotal(o))}</td></tr>
+        </tbody></table>
+        <ul class="check">${checkRow('Pagamento', o.pagamento, 'Falta escolher')}${checkRow('Rastreio', code || 'Criado ao salvar')}</ul>
+      </section>
+    </div>
+    ${stage === 2 || stage === 3 ? `<div class="wiz__actions">${btnHtml('Gerar de novo com os dados atuais', 'ph-arrows-clockwise', 'btn--line btn--sm', 'data-wiz="gerar"')}</div>` : ''}
+    <p class="wiz__note"><i class="ph ph-info"></i>Prévia sem valor fiscal. A nota oficial, com chave de acesso e protocolo da SEFAZ, sai pelo emissor fiscal da loja quando a integração for aprovada.</p>`;
+  if (CAN_ATTACH && o.nf) getPdf(o, 'nf').catch(() => {}); // ready before the click, so the phone share keeps the user gesture
 }
 
 function issueNf() {
   const again = !!current.nf;
   orders = loadOrders(); // next number from what is saved, also when another tab issued one
-  const number = current.nf?.numero ?? Math.max(1192, ...orders.map(o => o.nf?.numero || 0)) + 1;
+  const number = current.nf?.numero ?? Math.max(1192, notasInfo?.ultimo || 0, ...orders.map(o => o.nf?.numero || 0)) + 1; // o catálogo lembra das notas apagadas: número nunca se repete
   current.nf = { numero: number, serie: 1, emitidaEm: new Date().toISOString(), enviadaEm: current.nf?.enviadaEm || null };
   commit();
-  toast(again ? `Nota nº ${number} gerada de novo com os dados atuais.` : `Nota nº ${number} gerada. Confira o PDF.`);
+  toast(again ? `Nota nº ${number} gerada de novo com os dados atuais.` : `Nota nº ${number} gerada. Rastreio ${trackCodeOf(current)} já funciona no site.`);
 }
 $('#nf-wiz').addEventListener('click', async e => {
-  const step = e.target.closest('[data-step]');
-  if (step) { nfStep = +step.dataset.step; return renderWizard(); }
   const b = e.target.closest('[data-wiz]');
   if (!b) return;
   const a = b.dataset.wiz;
-  if (a === 'next' || a === 'back') { nfStep += a === 'next' ? 1 : -1; renderWizard(); }
   if (a === 'fix-cliente') {
     setTab('cliente');
-    const empty = ['nome', 'doc', 'endereco', 'bairro', 'cep', 'cidade'].find(n => !form[n].value.trim());
+    const empty = ['nome', 'doc', 'cep', 'endereco', 'bairro', 'cidade'].find(n => !form[n].value.trim());
     if (empty) form[empty].focus();
-    toast('Preencha os campos e volte para a aba Notas.');
   }
-  if (a === 'fix-pecas') { setTab('pecas'); toast('Corrija as peças e a forma de pagamento e volte para a aba Notas.'); }
+  if (a === 'fix-pecas') setTab('pecas');
   if (a === 'gerar') {
     if (!valid()) return;
-    issueNf(); nfChecked = false; renderNotes();
+    if (!current.nf) celebrate(b);
+    issueNf(); renderNotes();
     openPdfPreview('nf');
   }
   if (a === 'ver') openPdfPreview('nf');
   if (a === 'pdf') { try { downloadFile(await getPdf(current, 'nf')); } catch { toast('Não foi possível gerar o PDF da nota.'); } }
-  if (a === 'msg') { setTab('msg'); setTpl('nota'); }
   if (a === 'enviar') CAN_ATTACH ? await sendWithPdf('nota') : sendText('nota');
-});
-$('#nf-wiz').addEventListener('change', e => {
-  if (e.target.id !== 'nf-ok') return;
-  nfChecked = e.target.checked;
-  renderWizard();
 });
 
 /* =====================================================================
-   WHATSAPP MESSAGES
-   Emojis are written as code points so no editor or encoding can break them.
-   api.whatsapp.com/send keeps 4-byte emojis intact; wa.me redirects sometimes turn them into "�".
+   WHATSAPP: os textos ficam em mensagens.js; aqui só o envio
    ===================================================================== */
-const E = {
-  ok: '✅', box: '\u{1F4E6}', memo: '\u{1F4DD}', pin: '\u{1F4CD}', cal: '\u{1F4C5}', link: '\u{1F517}',
-  truck: '\u{1F69A}', wrench: '\u{1F527}', money: '\u{1F4B0}', receipt: '\u{1F9FE}', clip: '\u{1F4CE}',
-  search: '\u{1F50E}', hands: '\u{1F91D}', card: '\u{1F4B3}', point: '\u{1F449}', wait: '⬜',
-  shield: '\u{1F6E1}️', store: '\u{1F3EA}', chat: '\u{1F4AC}',
-};
-const SIGN = `*Atual Sucatas*\nPeças originais com garantia e nota fiscal\n${E.pin} Chapecó - SC | Enviamos para todo o Brasil`;
-const tidy = lines => lines.filter(l => l !== null && l !== undefined)
-  .filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n').trim();
-const firstName = n => String(n || '').trim().split(/\s+/)[0];
-const isPickup = o => /retirada/i.test(o.rastreio?.transportadora || '');
-const partsTotal = o => o.itens.reduce((t, i) => t + i.qtd * i.valor, 0);
-const itemLines = o => o.itens.map(i => `• ${i.qtd}x ${i.desc} | ${brl(i.qtd * i.valor)}`);
-const valueLines = o => [
-  `${E.money} *Valores*`,
-  `Peças: ${brl(partsTotal(o))}`,
-  Number(o.frete) > 0 ? `Frete: ${brl(o.frete)}` : isPickup(o) ? 'Frete: retirada na loja' : null,
-  `*Total: ${brl(orderTotal(o))}*`,
-  o.pagamento ? `${E.card} Pagamento: ${o.pagamento}` : null,
-];
-const destLine = o => isPickup(o) ? `${E.store} Retirada na loja, em Chapecó - SC` : `${E.pin} Destino: ${o.cliente.cidade}`;
-// greeting line per delivery stage (owner's concise model)
-const EVENT = [
-  `seu pedido foi confirmado ${E.ok}`,
-  `sua peça já foi separada e conferida ${E.wrench}`,
-  `seu pedido foi enviado ${E.truck}`,
-  `seu pedido está a caminho ${E.truck}`,
-  `seu pedido saiu para entrega ${E.truck}`,
-  `seu pedido foi entregue ${E.ok}`,
-];
-// tracking message for a delivery stage
-function deliveryMsg(o, stage) {
-  return tidy([
-    `Olá, *${(o.cliente.nome || '').toUpperCase()}*! ${EVENT[stage]}`,
-    '',
-    `${E.box} Código de rastreio: *${o.rastreio?.codigo || o.codigo}*`,
-    `${E.memo} Situação: ${ORDER_STATUS[stage]}`,
-    o.rastreio?.transportadora && !isPickup(o) ? `${E.truck} Transportadora: ${o.rastreio.transportadora}` : null,
-    o.previsao && stage < LAST ? `${E.cal} Previsão de entrega: ${fmtDay(o.previsao)}` : null,
-    destLine(o),
-    '',
-    `${E.link} *Acompanhe seu pedido em tempo real:*`,
-    trackLink(o),
-    '',
-    stage === LAST ? `Obrigado pela confiança! ${E.hands} Precisando de outra peça, é só chamar.` : 'Você receberá novas atualizações por aqui.',
-    '',
-    SIGN,
-  ]);
-}
-// delivery attempt failed: up to 3 tries, then the order goes back to the store
-function attemptMsg(o) {
-  const n = Math.min(o.tentativas || 1, 3), last = n >= 3;
-  return tidy([
-    `Olá, *${(o.cliente.nome || '').toUpperCase()}*! Passamos para entregar seu pedido, mas não encontramos ninguém no endereço ${E.box}`,
-    '',
-    `${E.box} Código de rastreio: *${o.rastreio?.codigo || o.codigo}*`,
-    `${E.memo} Situação: tentativa de entrega sem sucesso (${n}ª de 3)`,
-    o.cliente.endereco ? `${E.pin} Endereço: ${o.cliente.endereco}${o.cliente.bairro ? `, ${o.cliente.bairro}` : ''} - ${o.cliente.cidade}` : `${E.pin} Destino: ${o.cliente.cidade}`,
-    '',
-    last
-      ? 'Esta foi a *3ª e última tentativa*. Como não foi possível entregar, o pedido será *devolvido à nossa loja*. Fale com a gente para combinar um novo envio ou a retirada em Chapecó - SC.'
-      : `Você ainda tem *${3 - n} ${3 - n === 1 ? 'chance' : 'chances'}* de entrega (são 3 no total). A transportadora vai tentar de novo — se puder, deixe alguém no local para receber. Depois da 3ª tentativa sem sucesso, o pedido volta para a loja.`,
-    '',
-    `${E.link} *Acompanhe seu pedido:*`,
-    trackLink(o),
-    '',
-    `${E.chat} Qualquer dúvida, é só responder esta mensagem.`,
-    '',
-    SIGN,
-  ]);
-}
-// attach = the message goes out together with the PDF
-const TEMPLATES = {
-  criado: (o, kind) => tidy([
-    `Olá, *${(o.cliente.nome || '').toUpperCase()}*! Seu pedido foi criado com sucesso ${E.ok}`,
-    '',
-    `${E.box} Código de rastreio: *${o.rastreio?.codigo || o.codigo}*`,
-    `${E.memo} Situação: ${ORDER_STATUS[o.status]}`,
-    isPickup(o) ? `${E.store} Retirada na loja, em Chapecó - SC` : `${E.pin} Destino: ${o.cliente.cidade}`,
-    o.previsao ? `${E.cal} Previsão de entrega: ${fmtDay(o.previsao)}` : null,
-    kind === 'nf' ? `${E.receipt} Nota fiscal nº *${o.nf.numero}* em anexo.`
-      : kind === 'pedido' ? `${E.clip} Resumo do pedido em anexo (PDF).` : null,
-    '',
-    `${E.link} *Acompanhe seu pedido em tempo real:*`,
-    trackLink(o),
-    '',
-    'Você receberá novas atualizações por aqui.',
-    '',
-    SIGN,
-  ]),
-  status: o => deliveryMsg(o, o.status),
-  nota: (o, attach) => tidy([
-    `Olá, *${firstName(o.cliente.nome)}*! A nota fiscal do seu pedido foi emitida ${E.receipt}`,
-    '',
-    `${E.box} Pedido: *${o.codigo}*`,
-    `${E.receipt} Nota fiscal: nº *${o.nf?.numero}*, série ${o.nf?.serie}`,
-    `${E.cal} Emissão: ${o.nf ? new Date(o.nf.emitidaEm).toLocaleDateString('pt-BR') : ''}`,
-    `${E.memo} Em nome de: ${o.cliente.nome}`,
-    '',
-    `${E.wrench} *Peças na nota*`,
-    ...itemLines(o),
-    '',
-    ...valueLines(o),
-    attach ? '' : null,
-    attach ? `${E.clip} Em anexo, o PDF da nota fiscal. Guarde este arquivo: ele é o comprovante da sua compra.` : null,
-    '',
-    `${E.link} *Acompanhe o pedido:*`,
-    trackLink(o),
-    '',
-    `Obrigado pela compra! ${E.hands}`,
-    '',
-    SIGN,
-  ]),
-};
-const TPL_NAMES = { criado: 'Confirmação do pedido', status: 'Atualização de entrega', nota: 'Nota fiscal' };
 // which PDF accompanies each message: the invoice travels with the order once it exists, else the order summary
 const attachKind = t => t === 'nota' ? (current?.nf ? 'nf' : null) : t === 'criado' ? (current?.nf ? 'nf' : 'pedido') : null;
 const ATTACH_LABEL = { pedido: 'Enviar com a nota do pedido', nf: 'Enviar com a nota fiscal' };
@@ -1156,7 +1047,7 @@ async function sendWithDownload(t) {
   openChat(TEMPLATES[t](current, kind));
   markSent(t);
   toast(kind
-    ? `${kind === 'nf' ? 'Nota fiscal' : 'Nota do pedido'} baixada. Anexe o arquivo na conversa que abriu e envie.`
+    ? `${kind === 'nf' ? 'Nota fiscal e nota do pedido baixadas (um PDF só)' : 'Nota do pedido baixada'}. Anexe o arquivo na conversa que abriu e envie.`
     : `${TPL_NAMES[t]}: conversa aberta no WhatsApp Web.`);
 }
 $('#wa-share').addEventListener('click', () => sendWithPdf(tpl));
@@ -1187,7 +1078,7 @@ async function logoDataUrl() {
   return logoData;
 }
 const pdfCache = new Map();
-const pdfKey = (o, kind) => JSON.stringify([kind, o.codigo, o.data, o.nf, o.cliente, o.itens, o.frete, o.pagamento, o.obs, o.status, o.rastreio, o.previsao, o.historico, storeCnpj(), siteUrl()]);
+const pdfKey = (o, kind) => JSON.stringify([kind, o.codigo, o.data, o.nf, o.cliente, o.itens, o.frete, o.pagamento, o.obs, o.status, o.rastreio, o.codigoRastreio, o.previsao, o.historico, storeCnpj(), siteUrl()]);
 function getPdf(o, kind = 'nf') {
   const k = pdfKey(o, kind);
   if (!pdfCache.has(k)) {
@@ -1202,9 +1093,7 @@ function getPdf(o, kind = 'nf') {
 /* DANFE-style layout following the owner's model (A4 in points, same grid as the model).
    Fiscal-only data (chave de acesso, protocolo, ICMS) is never invented. The page stays clearly marked
    as a preview without fiscal value until the NF-e integration exists. */
-async function buildNfPdf(o) {
-  if (!window.jspdf) throw new Error('jsPDF indisponível');
-  const doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+async function drawNfPdf(doc, o) {
   const L = 25, R = 570, W = R - L;
   const ink = [20, 20, 22], gray = [110, 110, 116], line = [60, 60, 64], band = [217, 217, 217], red = [196, 22, 28];
   const up = v => String(v ?? '').toUpperCase();
@@ -1359,7 +1248,7 @@ async function buildNfPdf(o) {
   font(5.2, false, gray); doc.text('INFORMAÇÕES COMPLEMENTARES', L + 4, y + 9);
   y += 24;
   font(9, true); doc.text(`Pedido: ${o.codigo}`, L + 4, y); y += 14;
-  if (o.rastreio?.codigo) { font(9, true); doc.text(`Código de Rastreio: ${o.rastreio.codigo}`, L + 4, y); y += 14; }
+  font(9, true); doc.text(`Código de Rastreio: ${trackCodeOf(o)}`, L + 4, y); y += 14;
   if (o.previsao) { font(8.4); doc.text(`Previsão de Entrega: ${fmtDay(o.previsao)}`, L + 4, y); y += 14; }
   if (o.pagamento) { font(8.4); doc.text(`Forma de Pagamento: ${o.pagamento}`, L + 4, y); y += 14; }
   if (o.obs) { font(8.4); const ls = doc.splitTextToSize(`Observações: ${o.obs}`, W - 8); doc.text(ls, L + 4, y, { lineHeightFactor: 1.3 }); y += ls.length * 11 + 3; }
@@ -1375,125 +1264,204 @@ async function buildNfPdf(o) {
   doc.text('SEM VALOR FISCAL', 297, 520, { align: 'center', angle: 32 });
   doc.restoreGraphicsState();
 
-  return doc.output('blob');
 }
 
-/* Order summary ("nota do pedido"): store header, customer, parts, totals, delivery and progress. Not a fiscal document.
-   ponytail: single page, fits about 15 parts; add page breaks if orders ever get longer. */
-async function buildOrderPdf(o) {
-  if (!window.jspdf) throw new Error('jsPDF indisponível');
-  const doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4' });
-  const L = 40, R = 555, W = R - L;
-  const ink = [22, 22, 26], gray = [112, 112, 120], body = [55, 55, 62], soft = [243, 243, 246], rule = [222, 222, 228], red = [200, 24, 30], dark = [26, 26, 30], white = [255, 255, 255];
+/* Nota do pedido: documento comercial com a mesma grade de campos da nota fiscal, sem nada que imite a NF-e.
+   Fica sempre marcada como não fiscal. Pedidos longos continuam em novas folhas, com o cabeçalho da tabela repetido. */
+async function drawOrderPdf(doc, o, first = 1) {
+  const L = 30, R = 565, W = R - L, TOP = 30, BOTTOM = 792;
+  const ink = [22, 22, 26], gray = [100, 100, 108], line = [170, 170, 178], band = [236, 236, 240], red = [190, 20, 26], white = [255, 255, 255];
+  const up = v => String(v ?? '').toUpperCase();
   const font = (size, bold = false, color = ink) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor(...color); };
-  const money = n => brl(n).replace(/ /g, ' ');
-  const cap = (text, x, y, align = 'left') => { font(7, true, gray); doc.text(text.toUpperCase(), x, y, { align }); };
-  const c = o.cliente, t = o.rastreio || {};
-  doc.setProperties({ title: `Nota do pedido ${o.codigo}`, author: 'Atual Comércio de Sucatas' });
+  const money = n => brl(n).replace(/ /g, ' ');
+  const dateBR = d => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
+  const c = o.cliente, t = o.rastreio || {}, pickup = isPickup(o);
+  const [municipio, uf] = (() => { const m = String(c.cidade || '').split(/\s*[-/]\s*/); return [m[0] || '', m.length > 1 ? m.at(-1) : ''] })();
+  if (first === 1) doc.setProperties({ title: `Nota do pedido ${o.codigo}`, author: 'ATUAL COMÉRCIO DE SUCATAS LTDA' });
+  doc.setLineWidth(.5);
 
-  /* header: store | order code */
+  let y = TOP;
+  const box = (x, yy, w, h) => { doc.setDrawColor(...line); doc.rect(x, yy, w, h); };
+  // nenhum dado é cortado: o texto diminui um pouco e, se ainda não couber, a linha cresce (rowH) e ele usa duas
+  const shrink = (text, size, bold, color, maxW) => {
+    let s = size;
+    font(s, bold, color);
+    while (s > 7.6 && doc.getTextWidth(text) > maxW) font(s -= .2, bold, color);
+    return doc.getTextWidth(text) <= maxW;
+  };
+  const rowH = (...cells) => cells.some(([text, w, bold]) => !shrink(String(text || '-'), 9, bold, ink, w - 10)) ? 37 : 26;
+  const cell = (x, yy, w, h, label, value, { bold = false, size = 9, align = 'left', color = ink } = {}) => {
+    box(x, yy, w, h);
+    font(5.6, true, gray); doc.text(up(label), x + 5, yy + 8);
+    const v = String(value || '-');
+    if (shrink(v, size, bold, color, w - 10)) doc.text(v, align === 'right' ? x + w - 5 : x + 5, yy + h - 7, { align });
+    else doc.text(doc.splitTextToSize(v, w - 10).slice(0, 2), x + 5, yy + 18, { lineHeightFactor: 1.2 });
+  };
+  const newPage = () => {
+    doc.addPage();
+    font(8, true); doc.text('ATUAL COMÉRCIO DE SUCATAS LTDA', L, TOP + 8);
+    font(8, false, gray); doc.text(`Nota do pedido ${o.codigo} (continuação)`, R, TOP + 8, { align: 'right' });
+    y = TOP + 18;
+  };
+  const need = h => { if (y + h > BOTTOM) newPage(); };
+  const bar = (title, after = 0) => {
+    y += 7;
+    need(13 + after);
+    doc.setFillColor(...band); doc.setDrawColor(...line); doc.rect(L, y, W, 13, 'FD');
+    font(7, true); doc.text(up(title), L + 5, y + 9);
+    y += 13;
+  };
+
+  /* cabeçalho: quem vende | qual documento */
+  const hh = 86, sw = 355, dx = L + sw, cx = (dx + R) / 2;
+  box(L, y, sw, hh);
   const logo = await logoDataUrl();
-  if (logo) doc.addImage(logo, 'PNG', L, 34, 58, 58, 'logo', 'FAST');
-  const hx = logo ? L + 70 : L;
-  font(14, true); doc.text('Atual Comércio de Sucatas', hx, 54);
-  font(8.4, false, gray);
-  doc.text(['R. Horaide Prestes de Souza, 65 - Vila Real', 'Chapecó - SC, 89805-807', `WhatsApp (49) 9 9104-1665${storeCnpj() ? `  ·  CNPJ ${storeCnpj()}` : ''}`], hx, 68, { lineHeightFactor: 1.4 });
-  cap('Nota do pedido', R, 48, 'right');
-  font(24, true, red); doc.text(o.codigo, R, 74, { align: 'right' });
-  font(8.4, false, gray); doc.text(`Pedido feito em ${new Date(o.data).toLocaleDateString('pt-BR')}`, R, 88, { align: 'right' });
-  doc.setDrawColor(...red); doc.setLineWidth(2); doc.line(L, 106, R, 106);
+  if (logo) doc.addImage(logo, 'PNG', L + 10, y + 13, 60, 60, 'logo', 'FAST');
+  const tx = logo ? L + 82 : L + 10;
+  font(11, true); doc.text('ATUAL COMÉRCIO DE SUCATAS LTDA', tx, y + 24);
+  font(8, false, [62, 62, 68]);
+  doc.text(['R. Horaide Prestes de Souza, 65 - Vila Real', 'Chapecó - SC  ·  CEP 89805-807', `WhatsApp (49) 9 9104-1665${storeCnpj() ? `  ·  CNPJ ${storeCnpj()}` : ''}`, 'Desmanche credenciado pelo DETRAN-SC'], tx, y + 37, { lineHeightFactor: 1.35 });
+  box(dx, y, R - dx, hh);
+  font(8, true, gray); doc.text('NOTA DO PEDIDO', cx, y + 15, { align: 'center' });
+  font(22, true, red); doc.text(o.codigo, cx, y + 39, { align: 'center' });
+  const half = (R - dx) / 2;
+  cell(dx, y + 50, half, hh - 50, 'Data do pedido', dateBR(o.data), { bold: true });
+  cell(dx + half, y + 50, half, hh - 50, 'Nota fiscal', o.nf ? `Nº ${o.nf.numero}, série ${o.nf.serie}` : 'A emitir', { bold: true });
+  y += hh;
+  doc.setFillColor(...band); doc.setDrawColor(...line); doc.rect(L, y, W, 15, 'FD');
+  font(7.4, true); doc.text('DOCUMENTO NÃO FISCAL', L + 5, y + 10.5);
+  font(7.4, false, [62, 62, 68]); doc.text('Resumo da compra para conferência. A nota fiscal eletrônica (NF-e) é enviada separadamente.', R - 5, y + 10.5, { align: 'right' });
+  y += 15;
 
-  doc.setFillColor(...soft); doc.rect(L, 116, W, 22, 'F');
-  font(8.2, false, body);
-  doc.text('Resumo da compra para o cliente conferir. Documento não fiscal: a nota fiscal (NF-e) é enviada separadamente.', L + 10, 130);
+  /* cliente */
+  bar('Dados do cliente', 100);
+  const h1 = rowH([up(c.nome), 295, true]), h2 = rowH([up(c.endereco), 295], [up(c.bairro), 130]);
+  cell(L, y, 295, h1, 'Nome / Razão social', up(c.nome), { bold: true, size: 9.5 });
+  cell(L + 295, y, 130, h1, 'CPF / CNPJ', c.doc);
+  cell(L + 425, y, 110, h1, 'WhatsApp', fmtPhone(c.whatsapp));
+  y += h1;
+  cell(L, y, 295, h2, 'Endereço', up(c.endereco));
+  cell(L + 295, y, 130, h2, 'Bairro', up(c.bairro));
+  cell(L + 425, y, 110, h2, 'CEP', c.cep);
+  y += h2;
+  cell(L, y, 245, 26, 'Município', up(municipio));
+  cell(L + 245, y, 50, 26, 'UF', up(uf), { bold: true });
+  cell(L + 295, y, 130, 26, 'Forma de pagamento', o.pagamento, { bold: true });
+  cell(L + 425, y, 110, 26, 'Situação', ORDER_STATUS[o.status], { bold: true });
+  y += 26;
 
-  /* customer | order info */
-  let y = 164;
-  const x2 = L + W / 2 + 10;
-  cap('Cliente', L, y); cap('Pedido', x2, y);
-  y += 17;
-  font(11, true); doc.text(doc.splitTextToSize(c.nome || '-', W / 2 - 10)[0], L, y);
-  font(8.8, false, body);
-  doc.text([c.doc ? `CPF/CNPJ: ${c.doc}` : '', c.whatsapp ? `WhatsApp: ${fmtPhone(c.whatsapp)}` : ''].filter(Boolean), L, y + 15, { lineHeightFactor: 1.5 });
-  [['Situação', ORDER_STATUS[o.status]], ['Pagamento', o.pagamento || '-'], ['Nota fiscal', o.nf ? `nº ${o.nf.numero}, série ${o.nf.serie}` : 'enviada após a emissão']]
-    .forEach(([k, v], i) => { font(8.8, false, gray); doc.text(`${k}:`, x2, y + i * 14); font(8.8, true); doc.text(v, x2 + 64, y + i * 14); });
-
-  /* parts */
-  y = 230;
-  const col = { n: L + 10, d: L + 40, q: 372, u: 462, t: R - 10 };
-  doc.setFillColor(...dark); doc.rect(L, y, W, 22, 'F');
-  font(7.4, true, white);
-  doc.text('ITEM', col.n, y + 14); doc.text('DESCRIÇÃO DA PEÇA', col.d, y + 14);
-  doc.text('QTD', col.q, y + 14, { align: 'center' }); doc.text('VALOR UNIT.', col.u, y + 14, { align: 'right' }); doc.text('TOTAL', col.t, y + 14, { align: 'right' });
-  y += 22;
-  o.itens.forEach((it, k) => {
-    font(9);
-    const lines = doc.splitTextToSize(it.desc || '-', col.q - col.d - 30);
-    const h = 12 + lines.length * 11;
-    if (k % 2) { doc.setFillColor(...soft); doc.rect(L, y, W, h, 'F'); }
-    font(9, false, gray); doc.text(String(k + 1).padStart(2, '0'), col.n, y + 15);
-    font(9); doc.text(lines, col.d, y + 15, { lineHeightFactor: 1.22 });
-    doc.text(String(it.qtd), col.q, y + 15, { align: 'center' });
-    doc.text(money(it.valor), col.u, y + 15, { align: 'right' });
-    font(9, true); doc.text(money(it.qtd * it.valor), col.t, y + 15, { align: 'right' });
+  /* peças */
+  const cols = [['Item', L, 34, 'center'], ['Descrição da peça', L + 34, 263, 'left'], ['Un', L + 297, 30, 'center'], ['Qtd', L + 327, 36, 'center'], ['Valor unitário', L + 363, 84, 'right'], ['Valor total', L + 447, 88, 'right']];
+  const at = ([, x, w, a]) => a === 'center' ? x + w / 2 : a === 'right' ? x + w - 5 : x + 5;
+  const head = () => {
+    cols.forEach(k => { box(k[1], y, k[2], 15); font(5.8, true, gray); doc.text(up(k[0]), at(k), y + 10, { align: k[3] }); });
+    y += 15;
+  };
+  bar('Peças', 15 + 20);
+  head();
+  o.itens.forEach((it, i) => {
+    font(8.6);
+    const lines = doc.splitTextToSize(it.desc || '-', cols[1][2] - 10);
+    const h = Math.max(20, 9 + lines.length * 10.5);
+    if (y + h > BOTTOM) { newPage(); head(); }
+    cols.forEach(k => box(k[1], y, k[2], h));
+    const by = y + 13;
+    font(8.6, false, gray); doc.text(String(i + 1).padStart(2, '0'), at(cols[0]), by, { align: 'center' });
+    font(8.6); doc.text(lines, at(cols[1]), by, { lineHeightFactor: 1.22 });
+    doc.text('UN', at(cols[2]), by, { align: 'center' });
+    doc.text(String(it.qtd), at(cols[3]), by, { align: 'center' });
+    doc.text(money(it.valor), at(cols[4]), by, { align: 'right' });
+    font(8.6, true); doc.text(money(it.qtd * it.valor), at(cols[5]), by, { align: 'right' });
     y += h;
   });
-  doc.setDrawColor(...rule); doc.setLineWidth(.8); doc.line(L, y, R, y);
 
-  /* delivery (left) + totals (right) */
-  y += 20;
-  const tw = 200, tx = R - tw;
-  const row = (label, value, yy) => { font(9, false, gray); doc.text(label, tx + 12, yy); font(9, true); doc.text(value, R - 12, yy, { align: 'right' }); };
-  doc.setFillColor(...soft); doc.rect(tx, y, tw, 46, 'F');
-  row('Peças', money(partsTotal(o)), y + 18);
-  row('Frete', Number(o.frete) > 0 ? money(o.frete) : isPickup(o) ? 'Retirada na loja' : money(0), y + 34);
-  doc.setFillColor(...red); doc.rect(tx, y + 46, tw, 30, 'F');
-  font(9, true, white); doc.text('TOTAL', tx + 12, y + 65);
-  font(14, true, white); doc.text(money(orderTotal(o)), R - 12, y + 66, { align: 'right' });
+  /* totais */
+  y += 7;
+  need(30);
+  const frete = Number(o.frete) > 0 ? money(o.frete) : pickup ? 'Retirada' : money(0);
+  cell(L, y, 150, 30, 'Total das peças', money(partsTotal(o)), { size: 10, align: 'right' });
+  cell(L + 150, y, 150, 30, 'Frete', frete, { size: 10, align: 'right' });
+  doc.setFillColor(...red); doc.rect(L + 300, y, 235, 30, 'F');
+  font(5.8, true, white); doc.text('VALOR TOTAL DO PEDIDO', L + 305, y + 9);
+  font(15, true, white); doc.text(money(orderTotal(o)), R - 6, y + 24, { align: 'right' });
+  y += 30;
 
-  const dw = W - tw - 30;
-  cap(isPickup(o) ? 'Retirada' : 'Entrega', L, y + 8);
-  const dl = isPickup(o)
-    ? ['Retirada na loja: R. Horaide Prestes de Souza, 65', 'Vila Real, Chapecó - SC', 'Seg a sex, 8h às 18h  ·  Sáb, 8h às 12h']
-    : [c.endereco ? `${c.endereco}${c.bairro ? ` - ${c.bairro}` : ''}` : '', `${c.cidade}${c.cep ? `  ·  CEP ${c.cep}` : ''}`,
-      t.transportadora ? `Envio por: ${t.transportadora}` : '', t.codigo ? `Código de rastreio: ${t.codigo}` : '',
-      o.previsao ? `Previsão de entrega: ${fmtDay(o.previsao)}` : ''].filter(Boolean);
-  font(9.2, false, body);
-  doc.text(dl.flatMap(l => doc.splitTextToSize(l, dw)), L, y + 24, { lineHeightFactor: 1.5 });
-  y += 104;
-
-  /* progress */
-  cap('Andamento do pedido', L, y);
-  y += 26;
-  const step = W / ORDER_STATUS.length;
-  ORDER_STATUS.forEach((s, i) => {
-    const cx = L + step * i + step / 2, done = i <= o.status;
-    doc.setLineWidth(2);
-    if (i) { doc.setDrawColor(...(done ? red : rule)); doc.line(cx - step + 9, y, cx - 9, y); }
-    doc.setLineWidth(1.2);
-    if (done) { doc.setFillColor(...red); doc.circle(cx, y, 6, 'F'); }
-    else { doc.setDrawColor(...rule); doc.setFillColor(...white); doc.circle(cx, y, 6, 'FD'); }
-    font(8, done, done ? ink : gray); doc.text(s, cx, y + 20, { align: 'center' });
-    const h = o.historico?.find(x => x.status === i);
-    if (h) { font(7, false, gray); doc.text(new Date(h.data).toLocaleDateString('pt-BR'), cx, y + 31, { align: 'center' }); }
-  });
-  y += 56;
-
-  /* notes */
-  if (o.obs) {
-    cap('Observações', L, y);
-    font(9.2, false, body);
-    doc.text(doc.splitTextToSize(o.obs, W), L, y + 16, { lineHeightFactor: 1.4 });
+  /* entrega ou retirada */
+  bar(pickup ? 'Retirada na loja' : 'Entrega', 52);
+  if (pickup) {
+    cell(L, y, 335, 26, 'Local de retirada', 'R. Horaide Prestes de Souza, 65 - Vila Real, Chapecó - SC');
+    cell(L + 335, y, 200, 26, 'Horário', 'Seg a sex, 8h às 18h  ·  Sáb, 8h às 12h');
+  } else {
+    cell(L, y, 175, 26, 'Transportadora', up(t.transportadora));
+    cell(L + 175, y, 130, 26, 'Código da transportadora', t.codigo);
+    cell(L + 305, y, 120, 26, 'Código de rastreio', trackCodeOf(o), { bold: true });
+    cell(L + 425, y, 110, 26, 'Previsão de entrega', o.previsao ? fmtDay(o.previsao) : '-');
   }
+  y += 26;
+  cell(L, y, W, 26, 'Acompanhe o pedido', trackLink(o), { color: red, size: 8.6 });
+  doc.link(L, y, W, 26, { url: trackLink(o) });
+  y += 26;
 
-  /* footer */
-  const fy = 758;
-  doc.setDrawColor(...rule); doc.setLineWidth(.8); doc.line(L, fy, R, fy);
-  font(8.6, true); doc.text('Acompanhe o pedido em tempo real:', L, fy + 18);
-  font(8.6, false, red); doc.textWithLink(trackLink(o), L, fy + 31, { url: trackLink(o) });
-  font(7.8, false, gray); doc.text(['Peças originais usadas, com garantia.', 'Enviamos para todo o Brasil.'], R, fy + 18, { align: 'right', lineHeightFactor: 1.5 });
-  font(7, false, gray); doc.text('Atual Sucatas  ·  Desmanche credenciado pelo DETRAN-SC  ·  instagram.com/atual.sucatas2019', L, fy + 54);
+  /* andamento */
+  bar('Andamento do pedido', 30);
+  const sw6 = W / ORDER_STATUS.length;
+  ORDER_STATUS.forEach((st, i) => {
+    const x = L + sw6 * i, done = i <= o.status, h = o.historico?.find(e => e.status === i);
+    if (i === o.status) { doc.setFillColor(...band); doc.rect(x, y, sw6, 30, 'F'); }
+    box(x, y, sw6, 30);
+    if (done) { doc.setFillColor(...red); doc.rect(x, y, sw6, 2.5, 'F'); }
+    font(7.2, done, done ? ink : gray); doc.text(st, x + sw6 / 2, y + 14, { align: 'center' });
+    font(6.8, false, gray); doc.text(done && h ? dateBR(h.data) : done ? 'Concluído' : 'Pendente', x + sw6 / 2, y + 24, { align: 'center' });
+  });
+  y += 30;
 
+  /* dados adicionais vão até o canhoto, que fica sempre no pé da última folha (como na nota fiscal) */
+  const stub = 50, sy = BOTTOM - stub, end = sy - 16;
+  const LEGAL = 'Peças usadas originais, provenientes de veículo desmontado por empresa credenciada no DETRAN-SC, conforme a Lei 12.977/2014. Garantia da loja em todas as peças.';
+  font(8.6);
+  const obs = o.obs ? doc.splitTextToSize(`Observações: ${o.obs}`, W - 10) : [];
+  font(7.4);
+  const legal = doc.splitTextToSize(LEGAL, W - 10);
+  const textH = obs.length * 11 + legal.length * 9.5 + 26;
+  if (y + 20 + textH > end) newPage();
+  bar('Dados adicionais');
+  box(L, y, W, end - y);
+  let ay = y + 14;
+  if (obs.length) { font(8.6); doc.text(obs, L + 5, ay, { lineHeightFactor: 1.25 }); ay += obs.length * 11 + 6; }
+  font(7.4, false, [62, 62, 68]); doc.text(legal, L + 5, ay, { lineHeightFactor: 1.3 });
+
+  doc.setDrawColor(...line); doc.setLineDashPattern([3, 2], 0); doc.line(L, sy - 8, R, sy - 8); doc.setLineDashPattern([], 0);
+  box(L, sy, W, stub);
+  font(7, true); doc.text('RECEBI AS PEÇAS RELACIONADAS NESTA NOTA DO PEDIDO', L + 5, sy + 11);
+  cell(L, sy + 16, 115, stub - 16, 'Data de recebimento', ' ');
+  cell(L + 115, sy + 16, 320, stub - 16, 'Nome e assinatura de quem recebeu', ' ');
+  cell(L + 435, sy + 16, 100, stub - 16, 'Pedido', o.codigo, { bold: true });
+
+  // a numeração conta só as folhas da nota do pedido, mesmo quando ela vem depois da nota fiscal
+  const pages = doc.getNumberOfPages();
+  for (let i = first; i <= pages; i++) {
+    doc.setPage(i);
+    font(6.8, false, gray);
+    doc.text('Atual Sucatas  ·  Documento não fiscal', L, 810);
+    doc.text(`Folha ${i - first + 1} de ${pages - first + 1}`, R, 810, { align: 'right' });
+  }
+}
+
+const newPdf = () => {
+  if (!window.jspdf) throw new Error('jsPDF indisponível');
+  return new window.jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+};
+// para o cliente vai um arquivo só: a nota fiscal na folha 1 e a nota do pedido a partir da folha 2
+async function buildNfPdf(o) {
+  const doc = newPdf();
+  await drawNfPdf(doc, o);
+  doc.addPage();
+  await drawOrderPdf(doc, o, doc.getNumberOfPages());
+  return doc.output('blob');
+}
+async function buildOrderPdf(o) {
+  const doc = newPdf();
+  await drawOrderPdf(doc, o);
   return doc.output('blob');
 }
 
@@ -1551,10 +1519,669 @@ document.addEventListener('pointerover', e => {
 });
 
 /* =====================================================================
+   INÍCIO: resumo do dia, números do mês, gráfico e pátio
+   ===================================================================== */
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FINE = matchMedia('(hover: hover) and (pointer: fine)').matches;
+const lastUpdate = o => o.historico?.at(-1)?.data || o.data;
+const shortBrl = v => v >= 1000 ? `R$ ${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : `R$ ${Math.round(v)}`;
+const niceCeil = v => { if (v <= 0) return 1000; const p = 10 ** Math.floor(Math.log10(v)), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p; };
+const emptyBox = (icon, text) => `<p class="empty"><i class="ph ${icon}" aria-hidden="true"></i>${text}</p>`;
+
+// conta só quando o valor muda: a sincronização redesenha a tela a cada 20 s e isso não pode piscar
+function setCount(el, value, fmt = v => Math.round(v)) {
+  const from = +(el.dataset.val ?? 0);
+  el.dataset.val = value;
+  if (REDUCE || !window.gsap || from === value) { el.textContent = fmt(value); return; }
+  const o = { v: from };
+  gsap.to(o, { v: value, duration: 1, ease: 'power3.out', overwrite: true, onUpdate: () => (el.textContent = fmt(o.v)) });
+}
+
+function monthsBack(n) {
+  const now = new Date();
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (n - 1 - i), 1);
+    const key = monthKey(d.toISOString()), list = orders.filter(o => monthKey(o.data) === key);
+    return { key, label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''), total: list.reduce((t, o) => t + orderTotal(o), 0), count: list.length };
+  });
+}
+
+function renderChart(rev) {
+  const top = niceCeil(Math.max(...rev.map(r => r.total)));
+  const plural = n => `${n} ${n === 1 ? 'pedido' : 'pedidos'}`;
+  $('#chart').innerHTML = `
+    <div class="chart__y" aria-hidden="true">${[1, .5, 0].map(f => `<span style="--f:${f}">${shortBrl(top * f)}</span>`).join('')}</div>
+    <div class="chart__plot">
+      ${[1, .5, 0].map(f => `<span class="chart__grid" style="--f:${f}"></span>`).join('')}
+      ${rev.map((r, i) => `<button type="button" class="bar ${i === rev.length - 1 ? 'is-now' : ''}" style="--i:${i}" aria-label="${r.label}: ${brl(r.total)}, ${plural(r.count)}">
+        <span class="bar__tip"><b>${brl(r.total)}</b>${plural(r.count)} em ${r.label}</span>
+        <span class="bar__fill" style="height:${(r.total / top) * 100}%"></span><span class="bar__label">${r.label}</span></button>`).join('')}
+      ${rev.every(r => !r.total) ? '<p class="chart__none">As vendas aparecem aqui depois do primeiro pedido.</p>' : ''}
+    </div>
+    <table class="sr-only"><caption>Vendas por mês</caption><tr><th>Mês</th><th>Total</th><th>Pedidos</th></tr>${rev.map(r => `<tr><td>${r.label}</td><td>${brl(r.total)}</td><td>${r.count}</td></tr>`).join('')}</table>`;
+}
+
+const TODO_ICON = { msg: 'ph-whatsapp-logo', nota: 'ph-receipt', entrega: 'ph-truck' };
+function renderHome() {
+  const h = new Date().getHours();
+  $('#greet').textContent = h < 12 ? 'Bom dia!' : h < 18 ? 'Boa tarde!' : 'Boa noite!';
+  const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  $('#today').textContent = today[0].toUpperCase() + today.slice(1);
+
+  const stale = orders.filter(o => o.status < LAST && Date.now() - new Date(lastUpdate(o)) > 2 * 864e5).sort((a, b) => lastUpdate(a).localeCompare(lastUpdate(b)));
+  const open = orders.filter(o => o.status < LAST).length;
+  $('#brief').textContent = !orders.length ? 'O painel está pronto. Cadastre o primeiro pedido para começar.'
+    : stale.length ? `${stale.length === 1 ? '1 pedido precisa' : `${stale.length} pedidos precisam`} da sua atenção hoje.`
+    : open ? `${open === 1 ? '1 pedido em andamento' : `${open} pedidos em andamento`}, tudo em dia.` : 'Todos os pedidos foram entregues.';
+
+  const todo = orders.filter(o => !nextStep(o).done).sort((a, b) => a.data.localeCompare(b.data)).slice(0, 6);
+  $('#todo').innerHTML = todo.length ? todo.map(o => {
+    const n = nextStep(o);
+    return `<div class="line"><span class="line__ico"><i class="ph ${TODO_ICON[n.tab]}" aria-hidden="true"></i></span>
+      <div class="line__txt"><b>${esc(n.short)}</b><small>${esc(o.codigo)} · ${esc(o.cliente.nome || 'Sem nome')}</small></div>
+      ${btnHtml(n.btn, '', 'btn--line btn--sm', `data-todo="${esc(o.codigo)}"`)}</div>`;
+  }).join('') : emptyBox('ph-check-circle', orders.length ? 'Nada pendente. Todos os pedidos estão em dia.' : 'Cadastre o primeiro pedido para começar.');
+
+  const rev = monthsBack(6), cur = rev[5], prev = rev[4];
+  setCount($('#k-fat'), cur.total, brl);
+  $('#k-delta').textContent = prev.total > 0 ? `${cur.total >= prev.total ? '+' : ''}${Math.round(((cur.total - prev.total) / prev.total) * 100)}% em relação ao mês passado`
+    : cur.total > 0 ? 'Primeiro mês com vendas no painel' : 'Nenhuma venda neste mês ainda';
+  setCount($('#k-ped'), cur.count);
+  setCount($('#k-way'), orders.filter(o => o.status >= 2 && o.status < LAST).length);
+  setCount($('#k-done'), orders.filter(o => o.status === LAST).length);
+
+  const counts = ORDER_STATUS.map((_, i) => orders.filter(o => o.status === i).length);
+  $('#pipe').innerHTML = ORDER_STATUS.map((s, i) => `<li class="${counts[i] ? 'has' : ''}" style="--i:${i}"><span class="pipe__dot"><i class="ph ${NOTIFY_ICON[i]}" aria-hidden="true"></i></span><strong>${counts[i]}</strong><span>${s}</span></li>`).join('');
+
+  renderChart(rev);
+
+  $('#attention').innerHTML = stale.length ? stale.slice(0, 5).map(o => `<div class="line"><span class="line__ico"><i class="ph ph-hourglass-medium" aria-hidden="true"></i></span>
+    <div class="line__txt"><b>${esc(o.cliente.nome || 'Sem nome')}</b><small>${esc(o.codigo)} · parado há ${Math.floor((Date.now() - new Date(lastUpdate(o))) / 864e5)} dias em "${esc(ORDER_STATUS[o.status])}"</small></div>
+    ${btnHtml('Abrir', '', 'btn--line btn--sm', `data-open="${esc(o.codigo)}"`)}</div>`).join('')
+    : emptyBox('ph-check-circle', 'Tudo em dia. Nenhum pedido parado.');
+
+  const recent = [...orders].sort((a, b) => b.data.localeCompare(a.data)).slice(0, 5);
+  $('#recent').innerHTML = recent.length ? recent.map(o => `<button type="button" class="line line--btn" data-open="${esc(o.codigo)}"><span class="line__ico"><i class="ph ph-package" aria-hidden="true"></i></span>
+    <span class="line__txt"><b>${esc(o.cliente.nome || 'Sem nome')}</b><small>${esc(o.codigo)} · ${esc(ORDER_STATUS[o.status])}</small></span><span class="line__val">${brl(orderTotal(o))}</span></button>`).join('')
+    : emptyBox('ph-package', 'Nenhum pedido ainda.');
+
+  const parts = {};
+  orders.forEach(o => o.itens.forEach(i => { const k = i.desc.trim(); if (k) { (parts[k] ||= { qtd: 0, total: 0 }).qtd += i.qtd; parts[k].total += i.qtd * i.valor; } }));
+  const best = Object.entries(parts).sort((a, b) => b[1].qtd - a[1].qtd).slice(0, 5), max = best[0]?.[1].qtd || 1;
+  $('#top-parts').innerHTML = best.length ? best.map(([desc, p], i) => `<div class="part" style="--i:${i}"><div class="part__txt"><b>${esc(desc)}</b><span class="part__bar"><span style="--w:${p.qtd / max}"></span></span></div><span class="line__val">${p.qtd} un.<small>${brl(p.total)}</small></span></div>`).join('')
+    : emptyBox('ph-wrench', 'As peças mais vendidas aparecem aqui.');
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-open]');
+  if (b) openDrawer(orders.find(o => o.codigo === b.dataset.open));
+  const t = e.target.closest('[data-todo]');
+  if (!t) return;
+  const o = orders.find(x => x.codigo === t.dataset.todo), n = nextStep(o);
+  if (n.tab === 'entrega') return openRoute(o);
+  openDrawer(o, n.tab);
+  if (n.tpl) setTpl(n.tpl);
+});
+
+/* =====================================================================
+   ENTREGAS
+   ===================================================================== */
+let shipFilter = 'open';
+const lastStop = o => (o.historico || []).filter(h => h.local).at(-1)?.local || '';
+function renderShips() {
+  const c = { open: orders.filter(o => o.status < LAST).length, done: orders.filter(o => o.status === LAST).length, all: orders.length };
+  $$('#ship-chips button').forEach(b => { b.innerHTML = `${b.textContent.replace(/\s*\d+$/, '')} <b>${c[b.dataset.shipF]}</b>`; b.classList.toggle('is-active', b.dataset.shipF === shipFilter); });
+  const list = orders.filter(o => shipFilter === 'all' || (shipFilter === 'done') === (o.status === LAST)).sort((a, b) => lastUpdate(b).localeCompare(lastUpdate(a)));
+  $('#ships').innerHTML = list.length ? list.map((o, n) => `<article class="dlv" style="--i:${Math.min(n, 10)}">
+    <div class="ship__top"><div><span class="o-code">${esc(o.codigo)}</span><p>${esc(o.cliente.nome || 'Sem nome')} · ${esc(o.cliente.cidade)}</p><small>${o.itens.map(i => esc(i.desc)).join(', ')}</small></div>${statusPill(o)}</div>
+    <div class="ship__bar" role="img" aria-label="Etapa ${o.status + 1} de ${LAST + 1}">${ORDER_STATUS.map((_, i) => `<span class="${i <= o.status ? 'on' : ''}"></span>`).join('')}</div>
+    <small class="ship__when">${lastStop(o) ? `Em ${esc(lastStop(o))} · ` : ''}Atualizado em ${fmtDate(lastUpdate(o))}${o.previsao ? ` · previsão ${fmtDay(o.previsao)}` : ''}</small>
+    <div class="ship__acts">
+      ${btnHtml('Mudar rota', 'ph-path', 'btn--primary btn--sm', `data-ship="rota" data-code="${esc(o.codigo)}"`)}
+      ${o.status < LAST ? btnHtml(`Avançar: ${ORDER_STATUS[o.status + 1]}`, 'ph-skip-forward', 'btn--line btn--sm', `data-ship="next" data-code="${esc(o.codigo)}"`) : ''}
+      <button class="icon" type="button" data-ship="msg" data-code="${esc(o.codigo)}" aria-label="Avisar no WhatsApp" title="Avisar no WhatsApp"><i class="ph ph-whatsapp-logo"></i></button>
+      <button class="icon" type="button" data-ship="link" data-code="${esc(o.codigo)}" aria-label="Copiar link de rastreio" title="Copiar link de rastreio"><i class="ph ph-link"></i></button>
+      <button class="icon" type="button" data-ship="test" data-code="${esc(o.codigo)}" aria-label="Ver como o cliente" title="Ver como o cliente"><i class="ph ph-device-mobile"></i></button>
+    </div></article>`).join('')
+    : `<div class="card">${emptyBox('ph-truck', shipFilter === 'done' ? 'Nenhum pedido entregue ainda.' : 'Nenhum pedido a caminho.')}</div>`;
+}
+$('#ship-chips').addEventListener('click', e => { const b = e.target.closest('[data-ship-f]'); if (b) { shipFilter = b.dataset.shipF; renderShips(); } });
+$('#ships').addEventListener('click', async e => {
+  const b = e.target.closest('[data-ship]');
+  if (!b) return;
+  const o = orders.find(x => x.codigo === b.dataset.code), a = b.dataset.ship;
+  if (a === 'rota') openRoute(o);
+  if (a === 'next') {
+    orders = loadOrders();
+    const x = orders.find(y => y.codigo === o.codigo);
+    x.status += 1;
+    x.historico.push({ status: x.status, data: new Date().toISOString() });
+    saveOrders(orders);
+    renderAll();
+    toast(`${x.codigo}: ${ORDER_STATUS[x.status]}. O cliente já vê no rastreio.`);
+  }
+  if (a === 'msg') { openDrawer(o, 'msg'); setTpl('status'); }
+  if (a === 'test') { setView('rastreio'); $('#t-sel').value = o.codigo; runTester(o.codigo); }
+  if (a === 'link') {
+    try { await navigator.clipboard.writeText(trackLink(o)); toast('Link de rastreio copiado.'); }
+    catch { toast('Não foi possível copiar o link.'); }
+  }
+});
+
+/* =====================================================================
+   CLIENTES (montado a partir dos pedidos)
+   ===================================================================== */
+function renderClients() {
+  const map = new Map();
+  orders.forEach(o => {
+    const k = String(o.cliente.doc || '').replace(/\D/g, '') || phoneDigits(o.cliente.whatsapp) || o.cliente.nome;
+    if (!k) return;
+    const c = map.get(k) || { pedidos: 0, total: 0, ultima: '' };
+    c.pedidos++; c.total += orderTotal(o);
+    if (o.data >= c.ultima) Object.assign(c, { ultima: o.data, nome: o.cliente.nome, doc: o.cliente.doc, cidade: o.cliente.cidade, fone: o.cliente.whatsapp });
+    map.set(k, c);
+  });
+  const q = $('#q-cli').value.trim().toLowerCase();
+  const list = [...map.values()].filter(c => !q || [c.nome, c.cidade, c.doc].join(' ').toLowerCase().includes(q)).sort((a, b) => b.ultima.localeCompare(a.ultima));
+  $('#cli-rows').innerHTML = list.map((c, i) => `<tr class="is-plain" style="--i:${Math.min(i, 12)}">
+    <td><b>${esc(c.nome)}</b></td><td>${esc(c.doc || '-')}</td><td>${esc(c.cidade)}</td><td>${c.pedidos}</td><td><strong>${brl(c.total)}</strong></td><td>${new Date(c.ultima).toLocaleDateString('pt-BR')}</td>
+    <td><a class="icon" href="https://api.whatsapp.com/send?phone=${phoneDigits(c.fone)}" target="_blank" rel="noopener" aria-label="Abrir conversa com ${esc(c.nome)}"><i class="ph ph-whatsapp-logo"></i></a></td></tr>`).join('');
+  $('#cli-empty').hidden = list.length > 0;
+  $('#cli-empty-text').textContent = q ? 'Nenhum cliente encontrado.' : 'Os clientes aparecem aqui depois do primeiro pedido.';
+}
+$('#q-cli').addEventListener('input', renderClients);
+
+/* =====================================================================
+   TESTAR RASTREIO
+   ===================================================================== */
+const DEMO_CODE = 'AS-EXEMPLO';
+const frame = $('#t-frame'), phone = $('#phone');
+let testing = '';
+function renderTester() {
+  const sel = $('#t-sel'), keep = sel.value;
+  sel.innerHTML = [...orders].sort((a, b) => b.data.localeCompare(a.data)).map(o => `<option value="${esc(o.codigo)}">${esc(o.codigo)} · ${esc(o.cliente.nome)}</option>`).join('') + `<option value="${DEMO_CODE}">Pedido de exemplo</option>`;
+  if (keep) sel.value = keep;
+  $('#ph-clock').textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  if (!testing) runTester(sel.value);
+}
+function runTester(code) {
+  testing = code;
+  const o = orders.find(x => x.codigo === code);
+  const shown = o ? trackLink(o) : trackPage(code);
+  const url = new URL(`../site/rastreio.html?pedido=${encodeURIComponent(code)}`, location.href).href;
+  $('#t-url').textContent = shown;
+  $('#ph-url').textContent = shown.replace(/^https?:\/\//, '').replace(/\?.*$/, '');
+  $('#t-open').href = url;
+  const wa = $('#t-wa');
+  wa.hidden = !o;
+  if (o) wa.href = `https://api.whatsapp.com/send?phone=${phoneDigits(o.cliente.whatsapp)}&text=${encodeURIComponent(`Acompanhe seu pedido ${o.codigo}: ${shown}`)}`;
+  phone.classList.add('is-loading');
+  if (!REDUCE && window.gsap) gsap.fromTo(phone, { y: 0, scale: 1 }, { y: -10, scale: 1.015, duration: .28, ease: 'power2.out', yoyo: true, repeat: 1 });
+  frame.src = url;
+}
+// a tela só aparece quando a página do cliente terminou de abrir
+frame.addEventListener('load', () => { if (frame.getAttribute('src') !== 'about:blank') setTimeout(() => phone.classList.remove('is-loading'), 450); });
+$('#t-go').addEventListener('click', () => runTester($('#t-code').value.trim() || $('#t-sel').value));
+$('#t-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#t-go').click(); });
+$('#t-sel').addEventListener('change', e => { $('#t-code').value = ''; runTester(e.target.value); });
+$('#t-reload').addEventListener('click', () => runTester(testing));
+$('#t-copy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('#t-url').textContent); toast('Link copiado.'); }
+  catch { toast('Não foi possível copiar o link.'); }
+});
+// o aparelho acompanha o mouse, como um celular na mão
+if (FINE && !REDUCE && window.gsap) {
+  const stage = $('#phone-stage');
+  gsap.set(phone, { transformPerspective: 1200 });
+  const rx = gsap.quickTo(phone, 'rotationX', { duration: .9, ease: 'power3.out' }), ry = gsap.quickTo(phone, 'rotationY', { duration: .9, ease: 'power3.out' });
+  stage.addEventListener('pointermove', e => { const r = stage.getBoundingClientRect(); rx((.5 - (e.clientY - r.top) / r.height) * 8); ry(((e.clientX - r.left) / r.width - .5) * 12); });
+  stage.addEventListener('pointerleave', () => { rx(0); ry(0); });
+}
+
+/* =====================================================================
+   MENSAGENS: todos os modelos num lugar só, com prévia e envio
+   ===================================================================== */
+const MC_GROUPS = [
+  ['Pedido', [['criado', 'Confirmação do pedido', 'ph-check-circle'], ['dados', 'Pedir dados para a nota', 'ph-identification-card'], ['retirada', 'Pronto para retirada', 'ph-storefront']]],
+  ['Entrega', [...ORDER_STATUS.slice(1).map((s, i) => [`st${i + 1}`, s, NOTIFY_ICON[i + 1]]), ['tentativa', 'Não consegui entregar', 'ph-house-line']]],
+  ['Nota fiscal', [['nota', 'Nota fiscal', 'ph-receipt']]],
+];
+// pedido de exemplo: a prévia funciona mesmo antes do primeiro pedido
+const MC_SAMPLE = {
+  codigo: 'AS-1024', codigoRastreio: 'ATSEXEMPLO2', data: new Date().toISOString(), status: 3, previsao: '', frete: 80, pagamento: 'Pix', obs: '', msgs: [], tentativas: 1,
+  cliente: { nome: 'Cliente de Exemplo', whatsapp: '', doc: '', cidade: 'Sorocaba - SP', endereco: 'Rua das Flores, 100', bairro: 'Centro', cep: '' },
+  itens: [{ desc: 'Farol esquerdo Hyundai i30 2014', qtd: 1, valor: 650 }], rastreio: { transportadora: 'Correios', codigo: '' },
+  historico: [{ status: 3, data: new Date().toISOString(), local: 'Curitiba - PR', obs: '' }], nf: { numero: 1193, serie: 1, emitidaEm: new Date().toISOString(), enviadaEm: null },
+};
+let mcModel = 'criado';
+const mcOrder = () => orders.find(o => o.codigo === $('#mc-order').value);
+function mcText(id, o) {
+  if (id.startsWith('st')) return deliveryMsg(o, +id.slice(2));
+  if (id === 'tentativa') return attemptMsg({ ...o, tentativas: (o.tentativas || 0) + 1 });
+  if (id === 'nota' && !o.nf) return '';
+  return TEMPLATES[id](o, null);
+}
+function renderMc() {
+  const sel = $('#mc-order'), keep = sel.value;
+  sel.innerHTML = [...orders].sort((a, b) => b.data.localeCompare(a.data)).map(o => `<option value="${esc(o.codigo)}">${esc(o.codigo)} · ${esc(o.cliente.nome)}</option>`).join('') || '<option value="">Exemplo (nenhum pedido ainda)</option>';
+  if (keep && [...sel.options].some(x => x.value === keep)) sel.value = keep;
+  $('#mc-list').innerHTML = MC_GROUPS.map(([g, items]) => `<p class="mc__g">${g}</p>${items.map(([id, name, ico]) => `<button type="button" data-mc="${id}" class="${id === mcModel ? 'is-on' : ''}"><i class="ph ${ico}" aria-hidden="true"></i>${esc(name)}</button>`).join('')}`).join('');
+
+  const o = mcOrder() || MC_SAMPLE, text = mcText(mcModel, o);
+  $('#mc-bubble').innerHTML = text ? waHtml(text) : '<span class="wa__empty">Este pedido ainda não tem nota fiscal. Emita a nota para liberar esta mensagem.</span>';
+  $('#mc-send').disabled = !mcOrder() || !text;
+  $('#mc-copy').disabled = !text;
+  $('#mc-open').disabled = !mcOrder();
+
+  const log = orders.flatMap(x => (x.msgs || []).map(m => ({ o: x, m }))).sort((a, b) => b.m.data.localeCompare(a.m.data)).slice(0, 8);
+  $('#mc-log').innerHTML = log.length ? log.map(({ o: x, m }) => `<div class="line"><span class="line__ico"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i></span>
+    <div class="line__txt"><b>${esc(m.tpl === 'status' ? ORDER_STATUS[m.status] : TPL_NAMES[m.tpl] || 'Mensagem')}</b><small>${esc(x.codigo)} · ${esc(x.cliente.nome)}</small></div><span class="line__val"><small>${fmtDate(m.data)}</small></span></div>`).join('')
+    : emptyBox('ph-chat-circle-text', 'As mensagens enviadas aparecem aqui.');
+}
+$('#mc-site').innerHTML = SITE_MSGS.map(([t, m]) => `<div class="mc__in"><b>${t}</b><p>${waHtml(m)}</p></div>`).join('');
+$('#mc-list').addEventListener('click', e => { const b = e.target.closest('[data-mc]'); if (b) { mcModel = b.dataset.mc; renderMc(); } });
+$('#mc-order').addEventListener('change', renderMc);
+$('#mc-open').addEventListener('click', () => { const o = mcOrder(); if (o) openDrawer(o, 'msg'); });
+$('#mc-copy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(mcText(mcModel, mcOrder() || MC_SAMPLE)); toast('Mensagem copiada.'); }
+  catch { toast('Não foi possível copiar.'); }
+});
+$('#mc-send').addEventListener('click', () => {
+  orders = loadOrders();
+  const o = orders.find(x => x.codigo === $('#mc-order').value);
+  if (!o) return;
+  if (mcModel === 'tentativa') o.tentativas = Math.min((o.tentativas || 0) + 1, 3);
+  current = structuredClone(o);
+  openChat(mcModel === 'tentativa' ? attemptMsg(o) : mcText(mcModel, o));
+  const stage = mcModel.startsWith('st') ? +mcModel.slice(2) : o.status;
+  (o.msgs ||= []).push({ tpl: mcModel.startsWith('st') ? 'status' : mcModel, data: new Date().toISOString(), status: stage });
+  if (mcModel === 'nota' && o.nf) o.nf.enviadaEm = new Date().toISOString();
+  saveOrders(orders);
+  renderAll();
+  toast(`Conversa aberta ${IS_MOBILE ? 'no WhatsApp' : 'no WhatsApp Web'}. Confira e envie.`);
+});
+
+/* =====================================================================
+   BACKUP
+   ===================================================================== */
+function renderCatalog() {
+  const c = notasInfo;
+  $('#nf-cat-status').textContent = !c ? 'O catálogo fica no servidor e aparece aqui quando o painel estiver conectado à Hostinger.'
+    : `${c.total} nota(s) guardada(s)${c.removidas ? `, ${c.removidas} removida(s) do painel` : ''}. ` + (c.foraDoSite ? 'Estão fora da pasta do site: trocar ou apagar o site não mexe nelas.' : 'Atenção: o servidor não deixou guardar fora da pasta do site. Não apague a pasta api/dados.');
+}
+addEventListener('orders:changed', renderCatalog);
+renderCatalog();
+const fetchCatalog = async () => {
+  if (!notasInfo) { toast('Conecte o painel à Hostinger para usar o catálogo.'); return null; }
+  try { return await syncApi('catalog'); } catch { toast('Não consegui falar com o servidor. Tente de novo.'); return null; }
+};
+$('#nf-cat-dl').addEventListener('click', async () => {
+  const c = await fetchCatalog();
+  if (!c) return;
+  downloadFile(new File([JSON.stringify(c, null, 2)], 'catalog.json', { type: 'application/json' }));
+  toast('catalog.json baixado. Guarde uma cópia fora do servidor também.');
+});
+// recoloca no painel as notas que saíram dele; a mais recente de cada pedido vence
+$('#nf-cat-back').addEventListener('click', async () => {
+  const c = await fetchCatalog();
+  if (!c) return;
+  orders = loadOrders();
+  const tem = new Set(orders.filter(o => o.nf).map(o => o.codigo));
+  const volta = [...c.notas].reverse().filter(n => !tem.has(n.codigo) && tem.add(n.codigo));
+  if (!volta.length) return toast('Nenhuma nota para recuperar: estão todas no painel.');
+  if (!confirm(`Recuperar ${volta.length} nota(s) no painel? Os pedidos que foram apagados voltam junto.`)) return;
+  volta.forEach(n => {
+    const i = orders.findIndex(o => o.codigo === n.codigo);
+    if (i < 0) orders.push(n.pedido); else orders[i].nf = n.pedido.nf;
+  });
+  saveOrders(orders);
+  renderAll();
+  toast(`${volta.length} nota(s) recuperada(s).`);
+});
+$('#backup-dl').addEventListener('click', () => {
+  const day = new Date().toISOString().slice(0, 10);
+  downloadFile(new File([JSON.stringify({ versao: 1, pedidos: loadOrders() })], `backup-atual-sucatas-${day}.json`, { type: 'application/json' }));
+  toast('Backup baixado. Guarde o arquivo em um lugar seguro.');
+});
+$('#backup-file').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  let list;
+  try { list = JSON.parse(await file.text()).pedidos; } catch {}
+  if (!Array.isArray(list) || list.some(o => !o?.codigo || !o.cliente || !Array.isArray(o.itens))) return toast('Esse arquivo não é um backup do painel.');
+  if (!confirm(`Restaurar ${list.length} pedido(s)? Pedidos com o mesmo código serão substituídos pelos do backup. Os outros continuam.`)) return;
+  const byCode = new Map(loadOrders().map(o => [o.codigo, o]));
+  list.forEach(o => byCode.set(o.codigo, o));
+  orders = [...byCode.values()];
+  saveOrders(orders);
+  renderAll();
+  toast(`${list.length} pedido(s) restaurado(s).`);
+});
+
+/* =====================================================================
+   MOVIMENTO
+   Toda tela entra com palavras subindo, cartões em cascata e números contando.
+   Tudo é opcional: sem GSAP ou com movimento reduzido, a tela já está pronta.
+   ===================================================================== */
+let enterTimer;
+
+function moveIndicator() {
+  const a = $('.side__nav button.is-active'), ind = $('#side-ind');
+  if (!a) return;
+  ind.style.transform = `translateY(${a.offsetTop}px)`;
+  ind.style.height = `${a.offsetHeight}px`;
+  ind.style.opacity = 1;
+}
+addEventListener('resize', moveIndicator);
+document.fonts?.ready.then(moveIndicator);
+
+function riseWords(el) {
+  if (!el || REDUCE) return;
+  const text = el.textContent;
+  el.setAttribute('aria-label', text);
+  el.innerHTML = text.split(' ').map((w, i) => `<span class="t-w" aria-hidden="true"><span style="--w:${i}">${esc(w)}</span></span>`).join(' ');
+}
+
+const revealer = 'IntersectionObserver' in window && new IntersectionObserver(entries => entries.forEach(e => {
+  if (!e.isIntersecting) return;
+  e.target.classList.add('is-in');
+  revealer.unobserve(e.target);
+}), { rootMargin: '0px 0px -8% 0px' });
+
+// os números sobem do zero sempre que a tela abre
+function countIn(panel) {
+  if (REDUCE || !window.gsap) return;
+  $$('[data-val]', panel).forEach(el => (el.dataset.val = 0));
+  if (panel.dataset.viewPanel === 'inicio') renderHome();
+  $$('[data-num]', panel).forEach(el => {
+    const o = { v: 0 }, money = 'money' in el.dataset;
+    gsap.to(o, { v: +el.dataset.num, duration: .9, ease: 'power3.out', onUpdate: () => (el.textContent = money ? brl(o.v) : Math.round(o.v)) });
+  });
+}
+
+function enterView(v) {
+  moveIndicator();
+  const panel = $(`[data-view-panel="${v}"]`), head = $('#main-head');
+  // a classe liga as entradas em CSS; sai logo depois para os redesenhos da sincronização não repetirem nada
+  [...$$('[data-view-panel]'), head].forEach(el => el.classList.remove('is-entering'));
+  void panel.offsetWidth;
+  [panel, head].forEach(el => el.classList.add('is-entering'));
+  clearTimeout(enterTimer);
+  enterTimer = setTimeout(() => [panel, head].forEach(el => el.classList.remove('is-entering')), 1400);
+  riseWords(v === 'inicio' ? $('#greet') : $('#view-title'));
+
+  $$('.rv', panel).forEach((el, i) => {
+    if (REDUCE || !revealer) return el.classList.add('is-in');
+    el.classList.remove('is-in');
+    el.style.setProperty('--i', i % 2);
+    revealer.observe(el);
+  });
+  countIn(panel);
+  scrollMotion();
+  if (window.ScrollTrigger) ScrollTrigger.refresh();
+}
+
+/* a engrenagem do logo gira com a rolagem */
+let scrollReady = false;
+function scrollMotion() {
+  if (scrollReady || REDUCE || !window.gsap || !window.ScrollTrigger) return;
+  scrollReady = true;
+  gsap.registerPlugin(ScrollTrigger);
+  gsap.to('.side__brand .logo-ring__g', { rotation: 360, ease: 'none', scrollTrigger: { start: 0, end: 'max', scrub: .6 } });
+}
+
+function playGate() {
+  if (REDUCE) return;
+  const g = $('#gate');
+  g.hidden = false;
+  setTimeout(() => (g.hidden = true), 1300);
+}
+function shake(el) {
+  if (!REDUCE) el.animate([0, -8, 7, -5, 3, 0].map(x => ({ transform: `translateX(${x}px)` })), { duration: 340, easing: 'ease-out' });
+}
+function celebrate(el) {
+  const r = el.getBoundingClientRect();
+  window.faiscas?.(r.left + r.width / 2, r.top);
+}
+
+/* cartões dos números: a luz segue o mouse e o cartão inclina com mola */
+if (FINE && !REDUCE && window.gsap) $$('.tilt').forEach(c => {
+  gsap.set(c, { transformPerspective: 900 });
+  const rx = gsap.quickTo(c, 'rotationX', { duration: .7, ease: 'elastic.out(1, .6)' });
+  const ry = gsap.quickTo(c, 'rotationY', { duration: .7, ease: 'elastic.out(1, .6)' });
+  c.addEventListener('pointermove', e => {
+    const r = c.getBoundingClientRect(), px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
+    c.style.setProperty('--mx', `${px * 100}%`); c.style.setProperty('--my', `${py * 100}%`);
+    rx((.5 - py) * 7); ry((px - .5) * 7);
+  });
+  c.addEventListener('pointerleave', () => { rx(0); ry(0); });
+});
+
+/* botões principais puxam o mouse, com aperto no clique */
+if (FINE && !REDUCE && window.gsap) $$('#new-order, .home-head .btn, #t-go').forEach(b => {
+  const x = gsap.quickTo(b, 'x', { duration: .6, ease: 'elastic.out(1, .45)' }), y = gsap.quickTo(b, 'y', { duration: .6, ease: 'elastic.out(1, .45)' });
+  b.addEventListener('pointermove', e => { const r = b.getBoundingClientRect(); x((e.clientX - r.left - r.width / 2) * .2); y((e.clientY - r.top - r.height / 2) * .3); });
+  b.addEventListener('pointerleave', () => { x(0); y(0); });
+});
+
+/* engrenagem em volta do logo */
+$$('[data-ring]').forEach(el => el.insertAdjacentHTML('afterbegin', `<span class="logo-ring__g" aria-hidden="true">${window.gearSvg?.(30) || ''}</span>`));
+
+/* =====================================================================
+   NOTAS: o que precisa ser feito, um pedido por linha
+   ===================================================================== */
+function renderNfQueue() {
+  const list = orders.filter(o => !o.nf || !o.nf.enviadaEm).sort((a, b) => a.data.localeCompare(b.data));
+  $('#q-count').textContent = list.length ? `${list.length} ${list.length === 1 ? 'pedido' : 'pedidos'}` : '';
+  $('#nf-queue').innerHTML = list.length ? list.map(o => {
+    const { cliente, badItems, okC, okP } = nfChecks(o);
+    const miss = [...cliente.filter(([, v]) => !v).map(([l]) => l), ...(o.pagamento ? [] : ['Pagamento']), ...(badItems ? ['Peças'] : [])];
+    const st = o.nf ? { cls: 'is-go', txt: `Nota nº ${o.nf.numero} gerada`, btn: 'Enviar ao cliente', ico: 'ph-whatsapp-logo', kind: 'btn--whats' }
+      : okC && okP ? { cls: 'is-ok', txt: 'Pronto para emitir', btn: 'Emitir nota', ico: 'ph-file-plus', kind: 'btn--primary' }
+      : { cls: 'is-warn', txt: `Falta: ${miss.join(', ')}`, btn: 'Completar dados', ico: 'ph-pencil-simple', kind: 'btn--line' };
+    return `<div class="q-row"><div class="q-row__who"><b>${esc(o.cliente.nome || 'Sem nome')}</b><small>${esc(o.codigo)} · ${brl(orderTotal(o))}</small></div>
+      <span class="q-tag ${st.cls}">${esc(st.txt)}</span>${btnHtml(st.btn, st.ico, `${st.kind} btn--sm`, `data-nf-open="${esc(o.codigo)}"`)}</div>`;
+  }).join('') : emptyBox('ph-check-circle', 'Todas as notas foram emitidas e enviadas.');
+}
+$('#nf-queue').addEventListener('click', e => {
+  const b = e.target.closest('[data-nf-open]');
+  if (b) openDrawer(orders.find(o => o.codigo === b.dataset.nfOpen), 'nota');
+});
+
+/* =====================================================================
+   MUDAR ROTA: etapa, cidade, transportadora, código e previsão num lugar só
+   ===================================================================== */
+const routeDlg = $('#route-dlg');
+let routeOrder = null, routeStage = 0, routeHist = [];
+
+function renderRoute() {
+  $('#rt-steps').innerHTML = ORDER_STATUS.map((s, i) => `<button type="button" data-rt="${i}" class="${i === routeStage ? 'is-on' : ''} ${i < routeStage ? 'is-past' : ''}"><i class="ph ${NOTIFY_ICON[i]}" aria-hidden="true"></i>${s}</button>`).join('');
+  const stops = routeHist.map((h, i) => ({ ...h, i })).filter(h => h.local);
+  $('#rt-path').innerHTML = `<span class="rt-stop rt-stop--fix"><i class="ph ph-warehouse" aria-hidden="true"></i>Chapecó - SC</span>`
+    + stops.map(h => `<i class="ph ph-caret-right rt-sep" aria-hidden="true"></i><span class="rt-stop">${esc(h.local)}<button type="button" data-rt-del="${h.i}" aria-label="Tirar ${esc(h.local)} da rota"><i class="ph ph-x"></i></button></span>`).join('')
+    + `<i class="ph ph-caret-right rt-sep" aria-hidden="true"></i><span class="rt-stop rt-stop--fix"><i class="ph ph-house-line" aria-hidden="true"></i>${esc(routeOrder.cliente.cidade || 'Cliente')}</span>`;
+  const t = $('#rt-transp').value.trim().toLowerCase();
+  $$('#rt-carriers button').forEach(b => b.classList.toggle('is-on', b.textContent.trim().toLowerCase() === t));
+}
+function openRoute(o) {
+  routeOrder = o;
+  routeStage = o.status;
+  routeHist = structuredClone(o.historico || []);
+  $('#rt-title').textContent = `Mudar rota do ${o.codigo}`;
+  $('#rt-sub').textContent = `${o.cliente.nome || 'Sem nome'} · ${o.cliente.cidade || 'sem cidade'}`;
+  $('#rt-local').value = ''; $('#rt-obs').value = '';
+  $('#rt-prev').value = o.previsao || '';
+  $('#rt-transp').value = o.rastreio?.transportadora || '';
+  $('#rt-code').value = o.rastreio?.codigo || '';
+  $('#rt-avisar').checked = true;
+  renderRoute();
+  routeDlg.showModal();
+  $('#rt-local').focus();
+}
+$('#rt-steps').addEventListener('click', e => { const b = e.target.closest('[data-rt]'); if (b) { routeStage = +b.dataset.rt; renderRoute(); } });
+$('#rt-path').addEventListener('click', e => { const b = e.target.closest('[data-rt-del]'); if (b) { routeHist[+b.dataset.rtDel].local = ''; renderRoute(); } });
+$('#rt-carriers').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { $('#rt-transp').value = b.textContent.trim(); renderRoute(); } });
+$('#rt-transp').addEventListener('input', renderRoute);
+$('#route-form').addEventListener('submit', e => {
+  e.preventDefault();
+  orders = loadOrders();
+  const o = orders.find(x => x.codigo === routeOrder.codigo);
+  if (!o) return routeDlg.close();
+  const local = $('#rt-local').value.trim(), obs = $('#rt-obs').value.trim();
+  o.historico = routeHist.filter(h => h.status <= routeStage); // voltar de etapa apaga o que estava à frente
+  if (routeStage !== o.status || local || obs) o.historico.push({ status: routeStage, data: new Date().toISOString(), local, obs });
+  o.status = routeStage;
+  o.previsao = $('#rt-prev').value;
+  o.rastreio = { transportadora: $('#rt-transp').value.trim(), codigo: $('#rt-code').value.trim() };
+  o.codigoRastreio ||= genTrack();
+  const notify = $('#rt-avisar').checked;
+  if (notify) (o.msgs ||= []).push({ tpl: 'status', data: new Date().toISOString(), status: routeStage });
+  saveOrders(orders);
+  routeDlg.close();
+  renderAll();
+  if (drawer.open && current?.codigo === o.codigo) { current = structuredClone(o); fillForm(); renderHead(); renderHistory(); renderNext(); renderNotify(); }
+  if (routeStage === LAST) celebrate($('#sync-pill'));
+  if (notify) { current = structuredClone(o); openChat(deliveryMsg(o, routeStage)); }
+  toast(`Rota do ${o.codigo} atualizada. O cliente já vê no rastreio.`);
+});
+$('#d-route').addEventListener('click', () => {
+  const o = orders.find(x => x.codigo === current?.codigo);
+  if (!o) return toast('Salve o pedido antes de mudar a rota.');
+  openRoute(o);
+});
+
+/* =====================================================================
+   FORMULÁRIO DO CLIENTE
+   ===================================================================== */
+const maskPhone = v => {
+  const d = v.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').slice(0, 11);
+  if (d.length < 3) return d;
+  const ddd = `(${d.slice(0, 2)}) `, rest = d.slice(2);
+  if (rest[0] === '9') return ddd + `9 ${rest.slice(1, 5)}${rest.length > 5 ? `-${rest.slice(5)}` : ''}`.trim(); // celular
+  return ddd + rest.slice(0, 4) + (rest.length > 4 ? `-${rest.slice(4)}` : '');
+};
+form.whatsapp.addEventListener('input', e => {
+  e.target.value = maskPhone(e.target.value);
+  const n = e.target.value.replace(/\D/g, '').length, el = $('#wa-err');
+  el.className = `field-err${n >= 10 ? ' is-ok' : ''}`;
+  el.textContent = n >= 10 ? 'WhatsApp completo ✓' : '';
+  suggestClient();
+});
+form.nome.addEventListener('input', suggestClient);
+
+// cliente que já comprou: um clique preenche tudo
+function suggestClient() {
+  const box = $('#cli-hit');
+  box.hidden = true;
+  if (!isNew) return;
+  const phone = form.whatsapp.value.replace(/\D/g, ''), name = form.nome.value.trim().toLowerCase(), doc = form.doc.value.replace(/\D/g, '');
+  if (phone.length < 8 && name.length < 4 && doc.length < 11) return;
+  const hit = [...orders].sort((a, b) => b.data.localeCompare(a.data)).find(o =>
+    (doc.length >= 11 && o.cliente.doc.replace(/\D/g, '') === doc) || (phone.length >= 8 && o.cliente.whatsapp.replace(/\D/g, '').includes(phone)) || (name.length >= 4 && o.cliente.nome.toLowerCase().includes(name)));
+  if (!hit || hit.cliente.nome.toLowerCase() === name) return;
+  box.hidden = false;
+  box.dataset.code = hit.codigo;
+  box.innerHTML = `<i class="ph ph-user-check" aria-hidden="true"></i><span><b>${esc(hit.cliente.nome)}</b> já comprou aqui · ${esc(hit.cliente.cidade)}</span><button type="button" class="link-btn">Usar estes dados</button>`;
+}
+$('#cli-hit').addEventListener('click', e => {
+  if (!e.target.closest('button')) return;
+  const o = orders.find(x => x.codigo === $('#cli-hit').dataset.code);
+  readForm();
+  current.cliente = structuredClone(o.cliente);
+  fillForm(); showDocErr(); renderCliLeft(); renderTrackChip(); renderNext();
+  $('#cli-hit').hidden = true;
+  toast('Dados do cliente preenchidos.');
+});
+
+// CNPJ completo busca a empresa na base pública; só preenche o que está vazio
+let lastCnpj = '';
+async function lookupCnpj() {
+  const d = form.doc.value.replace(/\D/g, '');
+  if (d.length !== 14 || !validCNPJ(d) || d === lastCnpj) return;
+  lastCnpj = d;
+  try {
+    const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${d}`);
+    if (!r.ok) return;
+    const j = await r.json(), fill = (el, v) => { if (v && !el.value.trim()) el.value = v; };
+    fill(form.nome, titleName(j.razao_social || ''));
+    fill(form.cep, maskCep(String(j.cep || '')));
+    fill(form.endereco, titleName(j.logradouro || ''));
+    fill(form.numero, j.numero);
+    fill(form.bairro, titleName(j.bairro || ''));
+    if (j.municipio && j.uf) fill(form.cidade, `${titleName(j.municipio)} - ${j.uf}`);
+    renderCliLeft();
+  } catch {}
+}
+form.doc.addEventListener('input', lookupCnpj);
+form.doc.addEventListener('input', suggestClient);
+
+function renderCliLeft() {
+  if (!current) return;
+  const c = { nome: form.nome.value, whatsapp: form.whatsapp.value, cidade: form.cidade.value };
+  const need = [['WhatsApp', c.whatsapp.replace(/\D/g, '').length >= 10], ['Nome', c.nome.trim()], ['Cidade', c.cidade.trim()]].filter(([, ok]) => !ok).map(([l]) => l);
+  const forNf = [['CPF ou CNPJ', form.doc.value], ['CEP', form.cep.value], ['Rua', form.endereco.value], ['Número', form.numero.value], ['Bairro', form.bairro.value]].filter(([, v]) => !v.trim()).map(([l]) => l);
+  const box = $('#cli-left');
+  box.className = `cli-left ${need.length ? 'is-need' : forNf.length ? 'is-nf' : 'is-ok'}`;
+  box.innerHTML = need.length ? `<i class="ph ph-warning-circle" aria-hidden="true"></i><span>Para salvar, falta: <b>${need.join(', ')}</b></span>`
+    : forNf.length ? `<i class="ph ph-info" aria-hidden="true"></i><span>Já dá para salvar. Para a nota fiscal, falta: <b>${forNf.join(', ')}</b></span>`
+    : '<i class="ph ph-check-circle" aria-hidden="true"></i><span>Cliente completo. A nota fiscal pode sair com estes dados.</span>';
+  $('.tabs [data-tab="cliente"]').classList.toggle('is-ok', !need.length && !forNf.length);
+}
+form.addEventListener('input', renderCliLeft);
+$('#order-form').addEventListener('click', e => { const b = e.target.closest('[data-tab-go]'); if (b) setTab(b.dataset.tabGo); });
+
+/* =====================================================================
+   CONEXÃO COM O SERVIDOR
+   ===================================================================== */
+const SYNC_LABEL = { conectado: ['Conectado ao site', 'is-ok'], enviando: ['Enviando...', 'is-wait'], 'sem-rede': ['Sem conexão, salvo aqui', 'is-bad'], local: ['Só neste navegador', 'is-off'] };
+function renderSyncPill() {
+  const [text, cls] = SYNC_LABEL[syncState];
+  const el = $('#sync-pill');
+  el.className = `sync-pill ${cls}`;
+  $('span', el).textContent = text;
+}
+addEventListener('sync:state', renderSyncPill);
+renderSyncPill();
+
+async function probeServer() {
+  try {
+    const r = await fetch(syncUrl('login'), { cache: 'no-store' });
+    const j = r.ok ? await r.json() : null;
+    if (typeof j?.configurado === 'boolean') serverAuth = j;
+  } catch {} // sem API (GitHub Pages, computador local): o login fica neste navegador
+}
+async function serverSubmit(user, pw) {
+  const setup = setupMode(), label = setup ? 'Criar acesso e entrar' : 'Entrar';
+  authErr.classList.remove('is-ok');
+  if (setup && pw !== $('#pw2').value) return (authErr.textContent = 'As duas senhas não são iguais.');
+  setSubmitLabel('Conectando...');
+  let r, j;
+  try {
+    r = await fetch(syncUrl('login'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ acao: setup ? 'criar' : 'entrar', usuario: user, senha: pw, chave: $('#inst-key').value }) });
+    j = await r.json();
+  } catch {
+    setSubmitLabel(label);
+    return (authErr.textContent = 'Sem conexão com o servidor. Tente de novo.');
+  }
+  setSubmitLabel(label);
+  if (!r.ok) { authErr.textContent = j.error || 'Não foi possível entrar.'; shake($('#auth-form')); return; }
+  localStorage.setItem(SYNC_KEY_STORE, j.chave);
+  serverAuth.configurado = true;
+  await setCredentials(user, pw); // guarda a sessão deste aparelho; quem decide o acesso é o servidor
+  startSync();
+  await syncFromServer();
+  orders = loadOrders();
+  enterApp(true);
+}
+
+/* =====================================================================
    BOOT
    ===================================================================== */
-if (!window.crypto?.subtle) {
-  $('#auth-hint').textContent = 'Abra o painel por um endereço seguro (https) para usar o login.';
-  $('#auth-submit').disabled = true;
-} else if (sessionStorage.getItem(SESSION_KEY) === '1' && readAuth()) enterApp();
-else showAuth();
+(async () => {
+  await probeServer();
+  if (!window.crypto?.subtle) {
+    $('#auth-hint').textContent = 'Abra o painel por um endereço seguro (https) para usar o login.';
+    $('#auth-submit').disabled = true;
+  } else if (sessionStorage.getItem(SESSION_KEY) === '1' && readAuth()) enterApp();
+  else showAuth();
+})();

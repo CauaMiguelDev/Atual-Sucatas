@@ -2,60 +2,25 @@ const $ = (s, r = document) => r.querySelector(s);
 
 /* =====================================================================
    ADMIN AREA: figures from the panel, only for the site's administrator (not the store).
-   Password check, lock and session live in admin-acesso.js (also used by Configurações in the panel).
+   O login fica no painel, na aba Admin; quem chega aqui sem sessão volta para ele.
    ===================================================================== */
 const IDLE_MS = 30 * 60 * 1000;
-const authErr = $('#auth-error');
-
-let lockTimer;
-function showLock() {
-  clearInterval(lockTimer);
-  const tick = () => {
-    const locked = ADMIN.lockedFor() > 0;
-    $('#pw').disabled = $('#auth-submit').disabled = locked;
-    if (locked) authErr.textContent = ADMIN.message();
-    else { clearInterval(lockTimer); if (authErr.textContent.startsWith('Muitas')) authErr.textContent = 'Você já pode tentar de novo.'; }
-  };
-  tick();
-  if (ADMIN.lockedFor()) lockTimer = setInterval(tick, 1000);
-}
-function showAuth(msg = '') {
-  $('#app').hidden = true;
-  $('#auth').hidden = false;
-  authErr.textContent = msg;
-  $('#pw').value = '';
-  showLock();
-  setTimeout(() => $('#pw').focus(), 50);
-}
 function enterApp() {
-  $('#auth').hidden = true;
   $('#app').hidden = false;
   render();
   armIdle();
 }
-function logout(msg) {
+function logout() {
   ADMIN.logout();
-  showAuth(msg);
+  location.replace('./?acesso=admin');
 }
 
-$('#auth-form').addEventListener('submit', async e => {
-  e.preventDefault();
-  const r = await ADMIN.check($('#pw').value);
-  if (r.ok) return enterApp();
-  authErr.textContent = ADMIN.message(r);
-  if (r.locked) showLock(); else $('#pw').select();
-});
-$('[data-eye]').addEventListener('click', e => {
-  const show = $('#pw').type === 'password';
-  $('#pw').type = show ? 'text' : 'password';
-  e.currentTarget.innerHTML = `<i class="ph ${show ? 'ph-eye-slash' : 'ph-eye'}"></i>`;
-});
 $('#logout').addEventListener('click', () => logout());
 
 let idleTimer;
 function armIdle() {
   clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => logout('Sessão encerrada por inatividade.'), IDLE_MS);
+  idleTimer = setTimeout(logout, IDLE_MS);
 }
 ['pointerdown', 'keydown'].forEach(t => addEventListener(t, () => { if (!$('#app').hidden) armIdle(); }, { passive: true }));
 
@@ -140,7 +105,7 @@ $('#orders-rows').addEventListener('click', e => {
   if (!b) return;
   const list = loadOrders(), o = list.find(x => x.codigo === b.dataset.delOrder);
   if (!o) return;
-  if (!confirm(`Excluir o pedido ${o.codigo} de ${o.cliente.nome || 'sem nome'}? Apaga o pedido inteiro. Não dá para desfazer.`)) return;
+  if (!confirm(`Excluir o pedido ${o.codigo} de ${o.cliente.nome || 'sem nome'}? Apaga o pedido inteiro. ${avisoCatalogo()}`)) return;
   saveOrders(list.filter(x => x.codigo !== o.codigo));
   render();
 });
@@ -150,7 +115,7 @@ $('#recent').addEventListener('click', e => {
   if (!b) return;
   const list = loadOrders(), o = list.find(x => x.codigo === b.dataset.delNf);
   if (!o || !o.nf) return;
-  if (!confirm(`Excluir a nota fiscal nº ${o.nf.numero} do pedido ${o.codigo}? O pedido continua; só a nota é removida. Não dá para desfazer.`)) return;
+  if (!confirm(`Excluir a nota fiscal nº ${o.nf.numero} do pedido ${o.codigo}? O pedido continua; só a nota sai dele. ${avisoCatalogo()}`)) return;
   o.nf = null;
   o.msgs = (o.msgs || []).filter(m => m.tpl !== 'nota');
   saveOrders(list);
@@ -165,8 +130,5 @@ addEventListener('orders:changed', () => { if (!$('#app').hidden) render(); });
 /* =====================================================================
    BOOT
    ===================================================================== */
-if (!window.crypto?.subtle) {
-  authErr.textContent = 'Abra esta página por um endereço seguro (https).';
-  $('#auth-submit').disabled = true;
-} else if (ADMIN.inSession()) enterApp();
-else showAuth();
+if (ADMIN.inSession()) enterApp();
+else location.replace('./?acesso=admin');

@@ -62,7 +62,7 @@ html { scrollbar-color: #33343a var(--black); }
 ::-webkit-scrollbar-track { background: var(--black); }
 ::-webkit-scrollbar-thumb { background: #33343a; border-radius: 8px; border: 3px solid var(--black); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.wrap { width: min(1200px, 100% - 40px); margin-inline: auto; }
+.wrap { width: min(var(--wrap, 1200px), 100% - 40px); margin-inline: auto; }
 #top-sentinel { position: absolute; top: 0; height: 60px; width: 1px; }
 main { overflow-x: clip; }
 
@@ -382,6 +382,9 @@ h3 { font: italic 800 1.5rem/1.05 var(--display); text-transform: uppercase; }
   font: 600 1rem var(--body); letter-spacing: .02em; transition: border-color .2s, box-shadow .2s;
 }
 .input::placeholder { color: #85868d; font-weight: 400; }
+.input:-webkit-autofill, .input:-webkit-autofill:hover, .input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text); caret-color: var(--text); -webkit-box-shadow: 0 0 0 100px #0d0d0f inset; transition: background-color 9999s;
+}
 .input:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 4px rgba(225, 38, 45, .22); }
 .pill { display: inline-flex; align-items: center; gap: .35rem; padding: .32rem .7rem; border-radius: 6px; font: 700 .74rem/1.1 var(--body); letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; background: rgba(225, 38, 45, .14); color: var(--red-text); border: 1px solid rgba(225, 38, 45, .4); }
 .pill--ok { background: rgba(60, 207, 122, .12); color: var(--ok); border-color: rgba(60, 207, 122, .35); }
@@ -449,7 +452,7 @@ h3 { font: italic 800 1.5rem/1.05 var(--display); text-transform: uppercase; }
   .footer__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 600px) {
-  .wrap { width: min(1200px, 100% - 32px); }
+  .wrap { width: min(var(--wrap, 1200px), 100% - 32px); }
   .util__inner { gap: 1rem; }
   .util__inner > .util__link { display: none; }
   .wordmark { font-size: 1.2rem; }
@@ -755,3 +758,23 @@ img.img-fade.is-loaded { opacity: 1; filter: none; }
   .steps::before, .steps .step__icon { transform: none !important; opacity: 1 !important; transition: none !important; }
   img.img-fade { opacity: 1; filter: none; transition: none; }
 }
+
+/* one quiet background everywhere: near-black with a single soft light. compartilhado/fundo.js only draws the rare spark burst */
+.fundo { position: fixed; inset: 0; z-index: 90; overflow: hidden; pointer-events: none; }
+.fundo canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bgfx, .gear { display: none; }
+body::before { background: radial-gradient(60% 46% at 82% -8%, rgba(225, 38, 45, .09), transparent 72%); }
+/* animated background of the public pages: hairlines with slow beams of light and two soft glows.
+   Only transform runs here, on its own layer, so it costs nothing while scrolling. */
+/* fundo do site: a estrada 3D é desenhada em compartilhado/fundo.js; sem WebGL, ficam só os brilhos */
+.amb { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; contain: strict; }
+.amb canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 1.4s ease; }
+.amb canvas.on { opacity: 1; }
+.amb b { position: absolute; left: -10%; right: -10%; top: 50%; height: 50vh; margin-top: -25vh; background: radial-gradient(50% 50% at 50% 50%, rgba(225, 38, 45, .24), transparent); will-change: transform; }
+.amb i { position: absolute; width: 64vmax; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgba(225, 38, 45, .06), transparent 66%); will-change: transform; animation: amb-a 34s ease-in-out infinite alternate; }
+.amb i:nth-child(1) { right: -22vmax; top: -24vmax; }
+.amb i:nth-child(2) { left: -26vmax; bottom: -30vmax; opacity: .7; animation-name: amb-b; animation-duration: 42s; }
+@keyframes amb-a { to { transform: translate3d(-14vmax, 12vmax, 0) scale(1.1); } }
+@keyframes amb-b { to { transform: translate3d(16vmax, -10vmax, 0) scale(1.14); } }
+@media (prefers-reduced-motion: reduce) { .amb i { animation: none; } }
+@keyframes shine-loop { 0%, 72% { background-position: 160% 0, 0 0; } 100% { background-position: -60% 0, 0 0; } }

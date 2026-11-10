@@ -5,3 +5,14 @@
 .DS_Store
 Thumbs.db
 PRODUCT.md
+
+# a chave da API e os pedidos ficam só no servidor
+api/config.php
+api/admin-senha.php
+api/loja-acesso.php
+api/dados/*.json
+*.zip
+CHAVE-*.txt
+
+# conta e site da Hostinger usados no envio (fica só nesta máquina)
+.hostinger/
